@@ -1,0 +1,40 @@
+class MdxsParser < Formula
+  desc "Cross-platform CLI application"
+  homepage "https://github.com/owner/mdxs-parser"
+  version "{{ .Version }}"
+
+  on_macos do
+    if Hardware::CPU.intel?
+      url "https://github.com/owner/mdxs-parser/releases/download/v{{ .Version }}/mdxs-parser_v{{ .Version }}_darwin_amd64.tar.gz"
+      sha256 "{{ .DarwinAmd64SHA256 }}"
+    else
+      url "https://github.com/owner/mdxs-parser/releases/download/v{{ .Version }}/mdxs-parser_v{{ .Version }}_darwin_arm64.tar.gz"
+      sha256 "{{ .DarwinArm64SHA256 }}"
+    end
+  end
+
+  on_linux do
+    if Hardware::CPU.intel?
+      url "https://github.com/owner/mdxs-parser/releases/download/v{{ .Version }}/mdxs-parser_v{{ .Version }}_linux_amd64.tar.gz"
+      sha256 "{{ .LinuxAmd64SHA256 }}"
+    else
+      url "https://github.com/owner/mdxs-parser/releases/download/v{{ .Version }}/mdxs-parser_v{{ .Version }}_linux_arm64.tar.gz"
+      sha256 "{{ .LinuxArm64SHA256 }}"
+    end
+  end
+
+  def install
+    bin.install "mdxs-parser"
+
+    bash_completion.install "completions/mdxs-parser.bash" => "mdxs-parser"
+    zsh_completion.install "completions/_mdxs-parser"
+    fish_completion.install "completions/mdxs-parser.fish"
+
+    # Keep this location reserved for future manpage installation.
+    # man1.install "docs/mdxs-parser.1"
+  end
+
+  test do
+    assert_match "version", shell_output("#{bin}/mdxs-parser version")
+  end
+end
