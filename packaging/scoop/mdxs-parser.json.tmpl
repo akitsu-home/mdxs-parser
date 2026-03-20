@@ -1,0 +1,17 @@
+{
+  "version": "{{ .Version }}",
+  "description": "Cross-platform CLI application",
+  "homepage": "https://github.com/owner/mdxs-parser",
+  "license": "MIT",
+  "architecture": {
+    "64bit": {
+      "url": "https://github.com/owner/mdxs-parser/releases/download/v{{ .Version }}/mdxs-parser_v{{ .Version }}_windows_amd64.zip",
+      "hash": "{{ .WindowsAmd64SHA256 }}"
+    },
+    "arm64": {
+      "url": "https://github.com/owner/mdxs-parser/releases/download/v{{ .Version }}/mdxs-parser_v{{ .Version }}_windows_arm64.zip",
+      "hash": "{{ .WindowsArm64SHA256 }}"
+    }
+  },
+  "bin": "mdxs-parser.exe"
+}

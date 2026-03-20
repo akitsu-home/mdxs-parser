@@ -1,0 +1,59 @@
+version: 2
+
+project_name: mdxs-parser
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: mdxs-parser
+    main: ./cmd/mdxs-parser
+    binary: mdxs-parser
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X github.com/owner/mdxs-parser/internal/version.Version={{ .Version }} -X github.com/owner/mdxs-parser/internal/version.Commit={{ .ShortCommit }} -X github.com/owner/mdxs-parser/internal/version.Date={{ .Date }}
+
+archives:
+  - id: default
+    ids:
+      - mdxs-parser
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+release:
+  draft: false
+  replace_existing_draft: true
+
+# Future extension examples:
+# signs:
+#   - cmd: cosign
+# sboms:
+#   - artifacts: archive
