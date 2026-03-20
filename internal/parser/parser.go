@@ -3,7 +3,6 @@ package parser
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -13,18 +12,19 @@ const (
 	descriptionKey = "description"
 	listKey        = "list"
 	tableKey       = "table"
-	codeKey        = "code"
+	defaultCodeKey = "code"
 	includeStart   = "<!-- mdxs-parser:include-start -->"
 	includeEnd     = "<!-- mdxs-parser:include-end -->"
 )
 
 var (
-	headingPattern       = regexp.MustCompile(`^(#{1,6})\s+(.*)$`)
-	unorderedListPattern = regexp.MustCompile(`^\s*[-*+]\s+(.*)$`)
-	orderedListPattern   = regexp.MustCompile(`^\s*\d+\.\s+(.*)$`)
-	boldPattern          = regexp.MustCompile(`\*\*([^*]+)\*\*|__([^_]+)__`)
-	italicPattern        = regexp.MustCompile(`\*([^*\n]+)\*|_([^_\n]+)_`)
-	inlineCodePattern    = regexp.MustCompile("`([^`\n]+)`")
+	headingPattern          = regexp.MustCompile(`^(#{1,6})\s+(.*)$`)
+	unorderedListPattern    = regexp.MustCompile(`^\s*[-*+]\s+(.*)$`)
+	orderedListPattern      = regexp.MustCompile(`^\s*\d+\.\s+(.*)$`)
+	boldPattern             = regexp.MustCompile(`\*\*([^*]+)\*\*|__([^_]+)__`)
+	italicAsteriskPattern   = regexp.MustCompile(`\*([^*\n]+)\*`)
+	italicUnderscorePattern = regexp.MustCompile(`(^|[^_])_([^_\n]+)_([^_]|$)`)
+	inlineCodePattern       = regexp.MustCompile("`([^`\n]+)`")
 )
 
 type section struct {
@@ -61,7 +61,7 @@ func ExpandIncludes(path string) (string, error) {
 		return "", fmt.Errorf("resolve path %q: %w", path, err)
 	}
 
-	return expandFile(absolutePath, map[string]bool{})
+	return expandFileWithMode(absolutePath, map[string]bool{}, false)
 }
 
 func ParseMarkdown(markdown string) (map[string]any, error) {
@@ -145,7 +145,7 @@ func ParseMarkdown(markdown string) (map[string]any, error) {
 			inCodeBlock = true
 			codeBlockKey = sanitizeText(strings.TrimSpace(strings.TrimPrefix(trimmed, "```")))
 			if codeBlockKey == "" {
-				codeBlockKey = codeKey
+				codeBlockKey = defaultCodeKey
 			}
 			codeLines = nil
 			continue
@@ -160,7 +160,7 @@ func ParseMarkdown(markdown string) (map[string]any, error) {
 		if trimmed == includeStart {
 			flushParagraph()
 			flushList()
-			stackSnapshots = append(stackSnapshots, append([]section(nil), stack...))
+			stackSnapshots = append(stackSnapshots, copyStack(stack))
 			continue
 		}
 
@@ -170,7 +170,7 @@ func ParseMarkdown(markdown string) (map[string]any, error) {
 			if len(stackSnapshots) == 0 {
 				continue
 			}
-			stack = append([]section(nil), stackSnapshots[len(stackSnapshots)-1]...)
+			stack = copyStack(stackSnapshots[len(stackSnapshots)-1])
 			stackSnapshots = stackSnapshots[:len(stackSnapshots)-1]
 			continue
 		}
@@ -195,6 +195,7 @@ func ParseMarkdown(markdown string) (map[string]any, error) {
 			flushParagraph()
 			flushList()
 			addValue(currentNode(), tableKey, rows)
+			// The loop increments index after continue, so advance by consumed-1 here.
 			index += consumed - 1
 			continue
 		}
@@ -363,8 +364,8 @@ func sanitizeText(input string) string {
 		}
 		return match
 	})
-	output = italicPattern.ReplaceAllStringFunc(output, func(match string) string {
-		submatches := italicPattern.FindStringSubmatch(match)
+	output = italicAsteriskPattern.ReplaceAllStringFunc(output, func(match string) string {
+		submatches := italicAsteriskPattern.FindStringSubmatch(match)
 		for _, submatch := range submatches[1:] {
 			if submatch != "" {
 				return submatch
@@ -372,22 +373,11 @@ func sanitizeText(input string) string {
 		}
 		return match
 	})
+	output = italicUnderscorePattern.ReplaceAllString(output, "$1$2$3")
 	output = inlineCodePattern.ReplaceAllString(output, "$1")
 	return strings.TrimSpace(output)
 }
 
-func expandFile(path string, stack map[string]bool) (string, error) {
-	if stack[path] {
-		return "", fmt.Errorf("circular include detected for %q", path)
-	}
-
-	stack[path] = true
-	defer delete(stack, path)
-
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return "", fmt.Errorf("read markdown file %q: %w", path, err)
-	}
-
-	return expandMarkdownLinks(string(content), path, stack)
+func copyStack(stack []section) []section {
+	return append([]section(nil), stack...)
 }

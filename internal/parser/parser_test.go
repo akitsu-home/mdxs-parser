@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestRenderJSONParsesStructuredMarkdownWithIncludes(t *testing.T) {
+func TestRenderJSON_StructuredMarkdownWithIncludes(t *testing.T) {
 	tempDir := t.TempDir()
 	childPath := filepath.Join(tempDir, "child.md")
 	mainPath := filepath.Join(tempDir, "main.md")
@@ -16,7 +16,7 @@ func TestRenderJSONParsesStructuredMarkdownWithIncludes(t *testing.T) {
 		t.Fatalf("write child markdown: %v", err)
 	}
 
-	mainMarkdown := "# Root\n\nIntro with **bold** text.\n\n- first item\n- second item\n\n[Include child](child.md#child-section)\n\nVisit [site](https://example.com).\n\n```go\nfmt.Println(\"hello\")\n```\n\n| Name | Value |\n| ---- | ----- |\n| one  | 1     |\n"
+	mainMarkdown := "# Root\n\nIntro with __bold__ text.\n\n- first item\n- second item\n\n[Include child](child.md#child-section)\n\nVisit [site](https://example.com).\n\n```go\nfmt.Println(\"hello\")\n```\n\n| Name | Value |\n| ---- | ----- |\n| one  | 1     |\n"
 	if err := os.WriteFile(mainPath, []byte(mainMarkdown), 0o644); err != nil {
 		t.Fatalf("write main markdown: %v", err)
 	}
@@ -74,7 +74,7 @@ func TestRenderJSONParsesStructuredMarkdownWithIncludes(t *testing.T) {
 	}
 }
 
-func TestRenderMarkdownExpandsOnlyRelativeMarkdownLinks(t *testing.T) {
+func TestRenderMarkdown_ExpandsOnlyRelativeMarkdownLinks(t *testing.T) {
 	tempDir := t.TempDir()
 	mainPath := filepath.Join(tempDir, "main.md")
 	otherPath := filepath.Join(tempDir, "other.md")

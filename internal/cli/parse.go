@@ -41,7 +41,7 @@ func newParseCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&jsonOutput, "json", false, "Output JSON")
+	cmd.Flags().BoolVar(&jsonOutput, "json", false, "Output JSON (default)")
 	cmd.Flags().BoolVar(&markdownOutput, "markdown", false, "Output expanded markdown")
 
 	return cmd

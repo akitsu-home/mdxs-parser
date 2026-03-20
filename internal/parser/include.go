@@ -30,7 +30,8 @@ func expandMarkdownLinksWithMode(content string, currentPath string, stack map[s
 		targetStart := match[2]
 		targetEnd := match[3]
 
-		if start > 0 && content[start-1] == '!' {
+		// Leave image syntax untouched so only markdown document links are expanded.
+		if isImageLink(content, start) {
 			continue
 		}
 
@@ -159,6 +160,10 @@ func normalizeSlug(input string) string {
 		}
 	}
 	return strings.Trim(builder.String(), "-")
+}
+
+func isImageLink(content string, start int) bool {
+	return start > 0 && content[start-1] == '!'
 }
 
 func expandFileForParse(path string, stack map[string]bool) (string, error) {
