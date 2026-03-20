@@ -30,6 +30,7 @@ type section struct {
 	title       string
 	parent      map[string]any
 	node        map[string]any
+	childTitles map[string]struct{}
 	contentKind contentKind
 }
 
@@ -76,7 +77,7 @@ func ExpandIncludes(path string) (string, error) {
 
 func ParseMarkdown(markdown string) (map[string]any, error) {
 	root := map[string]any{}
-	stack := []section{{level: 0, node: root}}
+	stack := []section{{level: 0, node: root, childTitles: map[string]struct{}{}}}
 	stackSnapshots := [][]section{}
 	lines := strings.Split(strings.ReplaceAll(markdown, "\r\n", "\n"), "\n")
 
@@ -239,8 +240,19 @@ func ParseMarkdown(markdown string) (map[string]any, error) {
 				stack = stack[:len(stack)-1]
 			}
 
+			parentSection := currentSection()
 			parent := currentNode()
-			stack = append(stack, section{level: level, title: title, parent: parent})
+			if _, exists := parentSection.childTitles[title]; exists {
+				return nil, syntaxError(index+1, fmt.Sprintf("duplicate key %q from heading", title))
+			}
+			parentSection.childTitles[title] = struct{}{}
+
+			stack = append(stack, section{
+				level:       level,
+				title:       title,
+				parent:      parent,
+				childTitles: map[string]struct{}{},
+			})
 			continue
 		}
 

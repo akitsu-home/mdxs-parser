@@ -123,3 +123,15 @@ func TestParseMarkdown_TableMustAppearImmediatelyAfterHeading(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func TestParseMarkdown_DuplicateHeadingNameReturnsSyntaxError(t *testing.T) {
+	t.Parallel()
+
+	_, err := ParseMarkdown("# Root\n\n## Items\n\n- first\n\n## Items\n\n- second\n")
+	if err == nil {
+		t.Fatal("expected syntax error")
+	}
+	if !strings.Contains(err.Error(), `duplicate key "Items" from heading`) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
