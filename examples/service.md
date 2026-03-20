@@ -2,9 +2,6 @@
 
 API と Worker を含むサービス構成です。
 
-- api
-- worker
-
 [Runtime details](runtime.md#runtime-details)
 
 Visit [project page](https://example.com/project).
@@ -13,6 +10,13 @@ Visit [project page](https://example.com/project).
 name: service
 replicas: 2
 ```
+
+## Components
+
+- api
+- worker
+
+## Ports
 
 | Component | Port |
 | --------- | ---- |

@@ -4,12 +4,16 @@
 
 本番環境を想定した設定です。
 
-- linux
-- amd64
-
 ```bash
 ./mdxs-parser parse examples/service.md --json
 ```
+
+### Platforms
+
+- linux
+- amd64
+
+### Settings
 
 | Key      | Value |
 | -------- | ----- |

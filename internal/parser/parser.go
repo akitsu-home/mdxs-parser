@@ -10,8 +10,6 @@ import (
 
 const (
 	descriptionKey = "description"
-	listKey        = "list"
-	tableKey       = "table"
 	defaultCodeKey = "code"
 	includeStart   = "<!-- mdxs-parser:include-start -->"
 	includeEnd     = "<!-- mdxs-parser:include-end -->"
@@ -28,9 +26,21 @@ var (
 )
 
 type section struct {
-	level int
-	node  map[string]any
+	level       int
+	title       string
+	parent      map[string]any
+	node        map[string]any
+	contentKind contentKind
 }
+
+type contentKind string
+
+const (
+	contentKindNone  contentKind = ""
+	contentKindMap   contentKind = "map"
+	contentKindList  contentKind = "list"
+	contentKindTable contentKind = "table"
+)
 
 func RenderJSON(path string) ([]byte, error) {
 	absolutePath, err := filepath.Abs(path)
@@ -78,8 +88,58 @@ func ParseMarkdown(markdown string) (map[string]any, error) {
 		codeBlockKey   string
 	)
 
+	currentSection := func() *section {
+		return &stack[len(stack)-1]
+	}
+
 	currentNode := func() map[string]any {
-		return stack[len(stack)-1].node
+		current := currentSection()
+		if current.node != nil {
+			return current.node
+		}
+
+		child := ensureSection(current.parent, current.title)
+		current.node = child
+		if current.contentKind == contentKindNone {
+			current.contentKind = contentKindMap
+		}
+		return child
+	}
+
+	addSectionValue := func(value any) {
+		current := currentSection()
+		if current.parent == nil {
+			return
+		}
+
+		if existing, exists := current.parent[current.title]; exists {
+			switch current.contentKind {
+			case contentKindList:
+				existingValues, ok := existing.([]any)
+				if !ok {
+					break
+				}
+				incomingValues, ok := value.([]any)
+				if !ok {
+					break
+				}
+				current.parent[current.title] = append(existingValues, incomingValues...)
+				return
+			case contentKindTable:
+				existingRows, ok := existing.([]map[string]string)
+				if !ok {
+					break
+				}
+				incomingRows, ok := value.([]map[string]string)
+				if !ok {
+					break
+				}
+				current.parent[current.title] = append(existingRows, incomingRows...)
+				return
+			}
+		}
+
+		current.parent[current.title] = value
 	}
 
 	flushParagraph := func() {
@@ -94,25 +154,12 @@ func ParseMarkdown(markdown string) (map[string]any, error) {
 		if len(listItems) == 0 {
 			return
 		}
-		existing, ok := currentNode()[listKey]
-		if !ok {
-			values := make([]any, 0, len(listItems))
-			for _, item := range listItems {
-				values = append(values, item)
-			}
-			currentNode()[listKey] = values
-			listItems = nil
-			return
-		}
 
-		values, ok := existing.([]any)
-		if !ok {
-			values = []any{existing}
-		}
+		values := make([]any, 0, len(listItems))
 		for _, item := range listItems {
 			values = append(values, item)
 		}
-		currentNode()[listKey] = values
+		addSectionValue(values)
 		listItems = nil
 	}
 
@@ -140,6 +187,9 @@ func ParseMarkdown(markdown string) (map[string]any, error) {
 		}
 
 		if strings.HasPrefix(trimmed, "```") {
+			if currentSection().contentKind == contentKindList || currentSection().contentKind == contentKindTable {
+				return nil, syntaxError(index+1, "content is not allowed after a list or table section")
+			}
 			flushParagraph()
 			flushList()
 			inCodeBlock = true
@@ -181,35 +231,87 @@ func ParseMarkdown(markdown string) (map[string]any, error) {
 
 			level := len(matches[1])
 			title := sanitizeText(matches[2])
+			current := currentSection()
+			if (current.contentKind == contentKindList || current.contentKind == contentKindTable) && level > current.level {
+				return nil, syntaxError(index+1, "subheadings are not allowed after a list or table section")
+			}
 			for len(stack) > 1 && stack[len(stack)-1].level >= level {
 				stack = stack[:len(stack)-1]
 			}
 
 			parent := currentNode()
-			child := ensureSection(parent, title)
-			stack = append(stack, section{level: level, node: child})
+			stack = append(stack, section{level: level, title: title, parent: parent})
 			continue
 		}
 
 		if rows, consumed := parseTable(lines[index:]); consumed > 0 {
+			current := currentSection()
+			if len(stack) == 1 {
+				return nil, syntaxError(index+1, "table must appear immediately after a heading")
+			}
+			if len(paragraphLines) > 0 {
+				return nil, syntaxError(index+1, "table must appear immediately after its heading")
+			}
+			if current.contentKind == contentKindMap {
+				return nil, syntaxError(index+1, "table must appear immediately after its heading")
+			}
+			if current.contentKind == contentKindList {
+				return nil, syntaxError(index+1, "table cannot be mixed with a list under the same heading")
+			}
+
 			flushParagraph()
 			flushList()
-			addValue(currentNode(), tableKey, rows)
+			current.contentKind = contentKindTable
+			addSectionValue(rows)
 			// The loop increments index after continue, so advance by consumed-1 here.
 			index += consumed - 1
 			continue
 		}
 
 		if matches := unorderedListPattern.FindStringSubmatch(line); matches != nil {
+			current := currentSection()
+			if len(stack) == 1 {
+				return nil, syntaxError(index+1, "list must appear immediately after a heading")
+			}
+			if len(paragraphLines) > 0 {
+				return nil, syntaxError(index+1, "list must appear immediately after its heading")
+			}
+			if current.contentKind == contentKindMap {
+				return nil, syntaxError(index+1, "list must appear immediately after its heading")
+			}
+			if current.contentKind == contentKindTable {
+				return nil, syntaxError(index+1, "list cannot be mixed with a table under the same heading")
+			}
+
 			flushParagraph()
+			current.contentKind = contentKindList
 			listItems = append(listItems, sanitizeText(matches[1]))
 			continue
 		}
 
 		if matches := orderedListPattern.FindStringSubmatch(line); matches != nil {
+			current := currentSection()
+			if len(stack) == 1 {
+				return nil, syntaxError(index+1, "list must appear immediately after a heading")
+			}
+			if len(paragraphLines) > 0 {
+				return nil, syntaxError(index+1, "list must appear immediately after its heading")
+			}
+			if current.contentKind == contentKindMap {
+				return nil, syntaxError(index+1, "list must appear immediately after its heading")
+			}
+			if current.contentKind == contentKindTable {
+				return nil, syntaxError(index+1, "list cannot be mixed with a table under the same heading")
+			}
+
 			flushParagraph()
+			current.contentKind = contentKindList
 			listItems = append(listItems, sanitizeText(matches[1]))
 			continue
+		}
+
+		if currentSection().contentKind == contentKindList || currentSection().contentKind == contentKindTable {
+			return nil, syntaxError(index+1, "content is not allowed after a list or table section")
 		}
 
 		flushList()
@@ -241,20 +343,6 @@ func addValue(node map[string]any, key string, value any) {
 		if existing, ok := node[key].(string); ok && existing != "" {
 			node[key] = existing + "\n\n" + value.(string)
 			return
-		}
-	case listKey:
-		if existing, ok := node[key].([]any); ok {
-			if incoming, ok := value.([]any); ok {
-				node[key] = append(existing, incoming...)
-				return
-			}
-		}
-	case tableKey:
-		if existing, ok := node[key].([]map[string]string); ok {
-			if incoming, ok := value.([]map[string]string); ok {
-				node[key] = append(existing, incoming...)
-				return
-			}
 		}
 	}
 
@@ -380,4 +468,8 @@ func sanitizeText(input string) string {
 
 func copyStack(stack []section) []section {
 	return append([]section(nil), stack...)
+}
+
+func syntaxError(line int, message string) error {
+	return fmt.Errorf("syntax error on line %d: %s", line, message)
 }

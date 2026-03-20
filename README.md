@@ -91,15 +91,26 @@ mdxs-parser parse examples/service.md --markdown
 
 API と Worker を含むサービス構成です。
 
-- api
-- worker
-
 [Runtime details](runtime.md#runtime-details)
+
+Visit [project page](https://example.com/project).
 
 ```yaml
 name: service
 replicas: 2
 ```
+
+## Components
+
+- api
+- worker
+
+## Ports
+
+| Component | Port |
+| --------- | ---- |
+| api       | 8080 |
+| worker    | 9090 |
 ````
 
 JSON 出力例:
@@ -107,30 +118,11 @@ JSON 出力例:
 ```json
 {
   "Service": {
-    "Runtime Details": {
-      "bash": "./mdxs-parser parse examples/service.md --json",
-      "description": "本番環境を想定した設定です。",
-      "list": [
-        "linux",
-        "amd64"
-      ],
-      "table": [
-        {
-          "Key": "env",
-          "Value": "prod"
-        },
-        {
-          "Key": "replicas",
-          "Value": "2"
-        }
-      ]
-    },
-    "description": "API と Worker を含むサービス構成です。\n\nVisit [project page](https://example.com/project).",
-    "list": [
+    "Components": [
       "api",
       "worker"
     ],
-    "table": [
+    "Ports": [
       {
         "Component": "api",
         "Port": "8080"
@@ -140,6 +132,25 @@ JSON 出力例:
         "Port": "9090"
       }
     ],
+    "description": "API と Worker を含むサービス構成です。\n\nVisit [project page](https://example.com/project).",
+    "Runtime Details": {
+      "Platforms": [
+        "linux",
+        "amd64"
+      ],
+      "Settings": [
+        {
+          "Key": "env",
+          "Value": "prod"
+        },
+        {
+          "Key": "replicas",
+          "Value": "2"
+        }
+      ],
+      "bash": "./mdxs-parser parse examples/service.md --json",
+      "description": "本番環境を想定した設定です。"
+    },
     "yaml": "name: service\nreplicas: 2"
   }
 }
