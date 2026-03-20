@@ -88,3 +88,7 @@ make release-dry-run
 	- `packaging/scoop/mdxs-parser.json.tmpl`
 
 `owner` などのプレースホルダは実運用の org/repo 名へ置き換えてください。
+
+## 開発者向けドキュメント
+
+詳細な開発手順は [README.developer.md](README.developer.md) を参照してください。
