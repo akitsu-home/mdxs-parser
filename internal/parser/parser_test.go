@@ -32,9 +32,22 @@ func TestRenderJSON_StructuredMarkdownWithIncludes(t *testing.T) {
 		t.Fatalf("unmarshal output: %v", err)
 	}
 
-	root, ok := parsed["Root"].(map[string]any)
+	metadata, ok := parsed["metadata"].(map[string]any)
 	if !ok {
-		t.Fatalf("Root section missing or wrong type: %#v", parsed["Root"])
+		t.Fatalf("metadata missing or wrong type: %#v", parsed["metadata"])
+	}
+	if len(metadata) != 0 {
+		t.Fatalf("expected empty metadata: %#v", metadata)
+	}
+
+	body, ok := parsed["body"].(map[string]any)
+	if !ok {
+		t.Fatalf("body missing or wrong type: %#v", parsed["body"])
+	}
+
+	root, ok := body["Root"].(map[string]any)
+	if !ok {
+		t.Fatalf("Root section missing or wrong type: %#v", body["Root"])
 	}
 
 	if got := root["description"]; got != "Intro with bold text.\n\nVisit [site](https://example.com)." {
@@ -132,6 +145,52 @@ func TestParseMarkdown_DuplicateHeadingNameReturnsSyntaxError(t *testing.T) {
 		t.Fatal("expected syntax error")
 	}
 	if !strings.Contains(err.Error(), `duplicate key "Items" from heading`) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestParseMarkdown_WithFrontMatter(t *testing.T) {
+	t.Parallel()
+
+	markdown := "---\ntitle: sample\ntags:\n  - go\n  - parser\n---\n# Root\n\nHello.\n"
+	parsed, err := ParseMarkdown(markdown)
+	if err != nil {
+		t.Fatalf("ParseMarkdown returned error: %v", err)
+	}
+
+	metadata, ok := parsed["metadata"].(map[string]any)
+	if !ok {
+		t.Fatalf("metadata missing or wrong type: %#v", parsed["metadata"])
+	}
+	if metadata["title"] != "sample" {
+		t.Fatalf("unexpected metadata title: %#v", metadata["title"])
+	}
+	tags, ok := metadata["tags"].([]any)
+	if !ok || len(tags) != 2 || tags[0] != "go" || tags[1] != "parser" {
+		t.Fatalf("unexpected metadata tags: %#v", metadata["tags"])
+	}
+
+	body, ok := parsed["body"].(map[string]any)
+	if !ok {
+		t.Fatalf("body missing or wrong type: %#v", parsed["body"])
+	}
+	root, ok := body["Root"].(map[string]any)
+	if !ok {
+		t.Fatalf("Root section missing or wrong type: %#v", body["Root"])
+	}
+	if root["description"] != "Hello." {
+		t.Fatalf("unexpected root description: %#v", root["description"])
+	}
+}
+
+func TestParseMarkdown_UnclosedFrontMatterReturnsError(t *testing.T) {
+	t.Parallel()
+
+	_, err := ParseMarkdown("---\ntitle: sample\n# Root\n")
+	if err == nil {
+		t.Fatal("expected syntax error")
+	}
+	if !strings.Contains(err.Error(), "front matter is not closed") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

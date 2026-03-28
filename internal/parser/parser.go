@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -76,10 +78,16 @@ func ExpandIncludes(path string) (string, error) {
 }
 
 func ParseMarkdown(markdown string) (map[string]any, error) {
+	normalizedMarkdown := strings.ReplaceAll(markdown, "\r\n", "\n")
+	metadata, bodyMarkdown, err := parseFrontMatter(normalizedMarkdown)
+	if err != nil {
+		return nil, err
+	}
+
 	root := map[string]any{}
 	stack := []section{{level: 0, node: root, childTitles: map[string]struct{}{}}}
 	stackSnapshots := [][]section{}
-	lines := strings.Split(strings.ReplaceAll(markdown, "\r\n", "\n"), "\n")
+	lines := strings.Split(bodyMarkdown, "\n")
 
 	var (
 		paragraphLines []string
@@ -334,7 +342,38 @@ func ParseMarkdown(markdown string) (map[string]any, error) {
 	flushList()
 	flushCodeBlock()
 
-	return root, nil
+	return map[string]any{
+		"metadata": metadata,
+		"body":     root,
+	}, nil
+}
+
+func parseFrontMatter(markdown string) (map[string]any, string, error) {
+	metadata := map[string]any{}
+	lines := strings.Split(markdown, "\n")
+	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
+		return metadata, markdown, nil
+	}
+
+	endIndex := -1
+	for index := 1; index < len(lines); index++ {
+		if strings.TrimSpace(lines[index]) == "---" {
+			endIndex = index
+			break
+		}
+	}
+	if endIndex == -1 {
+		return nil, "", fmt.Errorf("syntax error: front matter is not closed")
+	}
+
+	frontMatterContent := strings.Join(lines[1:endIndex], "\n")
+	if strings.TrimSpace(frontMatterContent) != "" {
+		if err := yaml.Unmarshal([]byte(frontMatterContent), &metadata); err != nil {
+			return nil, "", fmt.Errorf("parse front matter: %w", err)
+		}
+	}
+
+	return metadata, strings.Join(lines[endIndex+1:], "\n"), nil
 }
 
 func ensureSection(parent map[string]any, title string) map[string]any {
