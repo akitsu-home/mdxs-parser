@@ -4,7 +4,7 @@ set -euo pipefail
 OWNER="${OWNER:-akitsu-home}"
 REPO="${REPO:-mdxs-parser}"
 APP_NAME="${APP_NAME:-mdxs-parser}"
-INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
+INSTALL_DIR="${INSTALL_DIR:-${HOME}/.local/bin}"
 VERSION="${VERSION:-}"
 
 need_cmd() {
@@ -130,6 +130,7 @@ if [[ -z "$src_bin" ]]; then
   exit 1
 fi
 
+mkdir -p "$INSTALL_DIR"
 dest_bin="${INSTALL_DIR}/${APP_NAME}"
 
 if [[ -w "$INSTALL_DIR" ]]; then

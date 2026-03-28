@@ -39,22 +39,24 @@ scoop install owner-bucket/mdxs-parser
 
 ### インストールスクリプト (Linux/macOS)
 
-最新リリースをインストール:
+最新リリースを `~/.local/bin` へインストール (パスワード不要):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/akitsu-home/mdxs-parser/main/scripts/install.sh | bash
 ```
 
+> `~/.local/bin` が `PATH` に含まれていない場合は `export PATH="$HOME/.local/bin:$PATH"` をシェルの設定ファイルに追加してください。
+
 特定バージョンをインストール:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/akitsu-home/mdxs-parser/main/scripts/install.sh | VERSION=v0.0.1 bash
+curl -fsSL https://raw.githubusercontent.com/akitsu-home/mdxs-parser/main/scripts/install.sh | VERSION=v0.0.2 bash
 ```
 
-インストール先を変更:
+システム全体にインストール (sudo が必要):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/akitsu-home/mdxs-parser/main/scripts/install.sh | INSTALL_DIR="$HOME/.local/bin" bash
+curl -fsSL https://raw.githubusercontent.com/akitsu-home/mdxs-parser/main/scripts/install.sh | INSTALL_DIR=/usr/local/bin bash
 ```
 
 ## 使い方
