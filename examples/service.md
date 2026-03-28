@@ -1,3 +1,11 @@
+---
+title: Service Example
+owner: platform-team
+tags:
+  - api
+  - worker
+---
+
 # Service
 
 API と Worker を含むサービス構成です。

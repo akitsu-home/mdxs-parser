@@ -112,6 +112,14 @@ mdxs-parser parse examples/service.md --markdown
 `examples/service.md` の内容:
 
 ````md
+---
+title: Service Example
+owner: platform-team
+tags:
+  - api
+  - worker
+---
+
 # Service
 
 API と Worker を含むサービス構成です。
@@ -180,7 +188,14 @@ JSON 出力例:
       "yaml": "name: service\nreplicas: 2"
     }
   },
-  "metadata": {}
+  "metadata": {
+    "owner": "platform-team",
+    "tags": [
+      "api",
+      "worker"
+    ],
+    "title": "Service Example"
+  }
 }
 ```
 
