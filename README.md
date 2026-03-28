@@ -68,6 +68,7 @@ mdxs-parser version
 mdxs-parser completion bash > /tmp/mdxs-parser.bash
 mdxs-parser parse examples/service.md
 mdxs-parser parse examples/service.md --markdown
+mdxs-parser e2e e2e-mdxs
 ```
 
 `version` の出力例:
@@ -86,6 +87,16 @@ mdxs-parser parse <file> [--json|--markdown]
 
 - `--json`: JSON で出力します（デフォルト）
 - `--markdown`: 相対パスの Markdown リンクを展開した Markdown を出力します
+
+### `e2e` コマンド
+
+`e2e-mdxs` 配下の Markdown をパースし、定義済みコマンドを静的に実行して結果を検査します。
+
+```bash
+mdxs-parser e2e [spec-dir]
+```
+
+各テストケースはトップレベル見出しで定義し、`command` / `stdout contains` / `stderr contains` / `stdout not contains` / `stderr not contains` / `exit code` を見出しとして指定できます。
 
 ### パースルール
 

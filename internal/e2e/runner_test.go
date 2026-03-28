@@ -105,4 +105,3 @@ func TestRunWithExecutor_InvalidSpec(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
-
