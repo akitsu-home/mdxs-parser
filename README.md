@@ -2,6 +2,7 @@
 
 Markdown を構造化 JSON に変換できる Go 製 CLI ツールです。
 見出しをオブジェクト階層として扱い、リスト、コードブロック、テーブル、段落を JSON に変換できます。
+YAML フロントマターは `metadata` として抽出し、それ以外の本文は `body` に格納します。
 また、相対パスの Markdown リンクをインクルードとして展開し、JSON または展開済み Markdown を出力できます。
 
 ## 主な機能
@@ -89,6 +90,8 @@ mdxs-parser parse <file> [--json|--markdown]
 ### パースルール
 
 - ヘッダーはネストしたオブジェクトのキーになります
+- YAML フロントマター（先頭の `---` ... `---`）は `metadata` に格納されます
+- 本文のパース結果は `body` に格納されます
 - 段落は `description` に格納されます
 - リストは `list` 配列に格納されます
 - コードブロックはフェンスの言語名をキーにした文字列として格納されます
@@ -139,42 +142,45 @@ JSON 出力例:
 
 ```json
 {
-  "Service": {
-    "Components": [
-      "api",
-      "worker"
-    ],
-    "Ports": [
-      {
-        "Component": "api",
-        "Port": "8080"
-      },
-      {
-        "Component": "worker",
-        "Port": "9090"
-      }
-    ],
-    "description": "API と Worker を含むサービス構成です。\n\nVisit [project page](https://example.com/project).",
-    "Runtime Details": {
-      "Platforms": [
-        "linux",
-        "amd64"
+  "body": {
+    "Service": {
+      "Components": [
+        "api",
+        "worker"
       ],
-      "Settings": [
+      "Ports": [
         {
-          "Key": "env",
-          "Value": "prod"
+          "Component": "api",
+          "Port": "8080"
         },
         {
-          "Key": "replicas",
-          "Value": "2"
+          "Component": "worker",
+          "Port": "9090"
         }
       ],
-      "bash": "./mdxs-parser parse examples/service.md --json",
-      "description": "本番環境を想定した設定です。"
-    },
-    "yaml": "name: service\nreplicas: 2"
-  }
+      "description": "API と Worker を含むサービス構成です。\n\nVisit [project page](https://example.com/project).",
+      "Runtime Details": {
+        "Platforms": [
+          "linux",
+          "amd64"
+        ],
+        "Settings": [
+          {
+            "Key": "env",
+            "Value": "prod"
+          },
+          {
+            "Key": "replicas",
+            "Value": "2"
+          }
+        ],
+        "bash": "./mdxs-parser parse examples/service.md --json",
+        "description": "本番環境を想定した設定です。"
+      },
+      "yaml": "name: service\nreplicas: 2"
+    }
+  },
+  "metadata": {}
 }
 ```
 

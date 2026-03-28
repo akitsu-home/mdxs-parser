@@ -351,13 +351,13 @@ func ParseMarkdown(markdown string) (map[string]any, error) {
 func parseFrontMatter(markdown string) (map[string]any, string, error) {
 	metadata := map[string]any{}
 	lines := strings.Split(markdown, "\n")
-	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
+	if len(lines) == 0 || !isFrontMatterOpeningDelimiter(lines[0]) {
 		return metadata, markdown, nil
 	}
 
 	endIndex := -1
 	for index := 1; index < len(lines); index++ {
-		if strings.TrimSpace(lines[index]) == "---" {
+		if isFrontMatterClosingDelimiter(lines[index]) {
 			endIndex = index
 			break
 		}
@@ -374,6 +374,15 @@ func parseFrontMatter(markdown string) (map[string]any, string, error) {
 	}
 
 	return metadata, strings.Join(lines[endIndex+1:], "\n"), nil
+}
+
+func isFrontMatterOpeningDelimiter(line string) bool {
+	return strings.TrimRight(line, " \t") == "---"
+}
+
+func isFrontMatterClosingDelimiter(line string) bool {
+	trimmed := strings.TrimRight(line, " \t")
+	return trimmed == "---" || trimmed == "..."
 }
 
 func ensureSection(parent map[string]any, title string) map[string]any {

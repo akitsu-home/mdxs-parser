@@ -194,3 +194,20 @@ func TestParseMarkdown_UnclosedFrontMatterReturnsError(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func TestParseMarkdown_FrontMatterCanCloseWithDots(t *testing.T) {
+	t.Parallel()
+
+	parsed, err := ParseMarkdown("---\ntitle: sample\n...\n# Root\n")
+	if err != nil {
+		t.Fatalf("ParseMarkdown returned error: %v", err)
+	}
+
+	metadata, ok := parsed["metadata"].(map[string]any)
+	if !ok {
+		t.Fatalf("metadata missing or wrong type: %#v", parsed["metadata"])
+	}
+	if metadata["title"] != "sample" {
+		t.Fatalf("unexpected metadata title: %#v", metadata["title"])
+	}
+}
