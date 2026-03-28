@@ -48,13 +48,13 @@ curl -fsSL https://raw.githubusercontent.com/akitsu-home/mdxs-parser/main/script
 特定バージョンをインストール:
 
 ```bash
-VERSION=v0.0.1 curl -fsSL https://raw.githubusercontent.com/akitsu-home/mdxs-parser/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/akitsu-home/mdxs-parser/main/scripts/install.sh | VERSION=v0.0.1 bash
 ```
 
 インストール先を変更:
 
 ```bash
-INSTALL_DIR="$HOME/.local/bin" curl -fsSL https://raw.githubusercontent.com/akitsu-home/mdxs-parser/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/akitsu-home/mdxs-parser/main/scripts/install.sh | INSTALL_DIR="$HOME/.local/bin" bash
 ```
 
 ## 使い方

@@ -99,22 +99,34 @@ OS="$(detect_os)"
 ARCH="$(detect_arch)"
 VERSION="$(resolve_version)"
 
-ASSET="${APP_NAME}_${VERSION}_${OS}_${ARCH}.tar.gz"
-URL="https://github.com/${OWNER}/${REPO}/releases/download/${VERSION}/${ASSET}"
-
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
 
-archive_path="${tmp_dir}/${ASSET}"
+version_no_v="${VERSION#v}"
+archive_path="${tmp_dir}/artifact.tar.gz"
+src_bin=""
 
-echo "Downloading ${URL}"
-http_get "$URL" "$archive_path"
+for candidate_version in "$version_no_v" "$VERSION"; do
+  ASSET="${APP_NAME}_${candidate_version}_${OS}_${ARCH}.tar.gz"
+  URL="https://github.com/${OWNER}/${REPO}/releases/download/${VERSION}/${ASSET}"
 
-tar -xzf "$archive_path" -C "$tmp_dir"
+  echo "Downloading ${URL}"
+  if http_get "$URL" "$archive_path"; then
+    tar -xzf "$archive_path" -C "$tmp_dir"
 
-src_bin="${tmp_dir}/${APP_NAME}_${VERSION}_${OS}_${ARCH}/${APP_NAME}"
-if [[ ! -f "$src_bin" ]]; then
-  echo "error: binary not found in archive: $src_bin" >&2
+    candidate_bin="${tmp_dir}/${APP_NAME}_${candidate_version}_${OS}_${ARCH}/${APP_NAME}"
+    if [[ ! -f "$candidate_bin" ]]; then
+      candidate_bin="${tmp_dir}/${APP_NAME}"
+    fi
+    if [[ -f "$candidate_bin" ]]; then
+      src_bin="$candidate_bin"
+      break
+    fi
+  fi
+done
+
+if [[ -z "$src_bin" ]]; then
+  echo "error: failed to download a matching release asset for ${VERSION} (${OS}/${ARCH})" >&2
   exit 1
 fi
 
