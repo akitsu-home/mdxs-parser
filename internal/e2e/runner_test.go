@@ -74,6 +74,9 @@ func TestRunWithExecutor_PassAndFailCases(t *testing.T) {
 	if !strings.Contains(report, "FAIL") {
 		t.Fatalf("expected FAIL in output: %s", report)
 	}
+	if !strings.Contains(report, `stdout unexpectedly contains "denied"`) {
+		t.Fatalf("expected assertion detail in output: %s", report)
+	}
 	if !strings.Contains(report, "Summary: total=2 passed=1 failed=1") {
 		t.Fatalf("unexpected summary: %s", report)
 	}

@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestE2ECommandUsesDefaultSpecDir(t *testing.T) {
+func TestE2ECommandErrorsOnMissingSpecDir(t *testing.T) {
 	cmd := NewRootCmd()
 	cmd.SetArgs([]string{"e2e", "/path/that/does/not/exist"})
 

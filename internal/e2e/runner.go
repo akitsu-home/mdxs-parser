@@ -34,6 +34,8 @@ type commandResult struct {
 
 type executor func(ctx context.Context, command []string, workDir string) (commandResult, error)
 
+var commandBlockKeys = []string{"code", "bash", "sh", "shell"}
+
 func Run(ctx context.Context, specDir string, out io.Writer) error {
 	return runWithExecutor(ctx, specDir, out, runCommand)
 }
@@ -188,13 +190,13 @@ func getCommand(raw map[string]any) ([]string, error) {
 		}
 		return command, nil
 	case map[string]any:
-		for _, key := range []string{"code", "bash", "sh", "shell"} {
+		for _, key := range commandBlockKeys {
 			if code, exists := findField(typed, key); exists {
 				text := strings.TrimSpace(fmt.Sprintf("%v", code))
 				if text == "" {
 					return nil, errors.New("'command' code block must not be empty")
 				}
-				return strings.Fields(text), nil
+				return parseCommandBlock(text), nil
 			}
 		}
 	}
@@ -322,6 +324,19 @@ func toStringSlice(value any) []string {
 		}
 		return []string{trimmed}
 	}
+}
+
+func parseCommandBlock(text string) []string {
+	lines := strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
+	command := make([]string, 0, len(lines))
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		command = append(command, trimmed)
+	}
+	return command
 }
 
 func findFieldValue(values map[string]any, normalized string) any {
