@@ -18,6 +18,9 @@ jobs:
   release:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    env:
+      HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+      SCOOP_BUCKET_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,18 +43,16 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update Homebrew tap formula (optional)
-        if: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+        if: ${{ env.HOMEBREW_TAP_TOKEN != '' }}
         env:
-          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           HOMEBREW_TAP_REPO: owner/homebrew-tap
           APP_NAME: mdxs-parser
           VERSION: ${{ github.ref_name }}
         run: ./scripts/update-homebrew-formula.sh
 
       - name: Update Scoop bucket manifest (optional)
-        if: ${{ secrets.SCOOP_BUCKET_TOKEN != '' }}
+        if: ${{ env.SCOOP_BUCKET_TOKEN != '' }}
         env:
-          SCOOP_BUCKET_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
           SCOOP_BUCKET_REPO: owner/scoop-bucket
           APP_NAME: mdxs-parser
           VERSION: ${{ github.ref_name }}
