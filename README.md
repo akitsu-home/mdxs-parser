@@ -32,6 +32,26 @@ scoop install owner-bucket/mdxs-parser
 1. GitHub Releases から利用 OS/Arch のアーカイブを取得
 2. 展開して `mdxs-parser` (Windows は `mdxs-parser.exe`) を PATH に配置
 
+### インストールスクリプト (Linux/macOS)
+
+最新リリースをインストール:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/akitsu-home/mdxs-parser/main/scripts/install.sh | bash
+```
+
+特定バージョンをインストール:
+
+```bash
+VERSION=v0.0.1 curl -fsSL https://raw.githubusercontent.com/akitsu-home/mdxs-parser/main/scripts/install.sh | bash
+```
+
+インストール先を変更:
+
+```bash
+INSTALL_DIR="$HOME/.local/bin" curl -fsSL https://raw.githubusercontent.com/akitsu-home/mdxs-parser/main/scripts/install.sh | bash
+```
+
 ## 使い方
 
 ```bash

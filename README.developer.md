@@ -121,6 +121,8 @@ version コマンド表示:
 - Release workflow
   - v* タグで GoReleaser を実行
   - 必要に応じて tap/bucket 更新スクリプトを実行
+  - `workflow_dispatch` で既存タグ向けに成果物を再ビルドし、Release Assets を上書きアップロード可能
+    - 入力: `version` (例: `v0.0.1`)
 
 ## 11. よくある作業
 
