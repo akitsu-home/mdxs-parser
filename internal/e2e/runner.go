@@ -3,12 +3,14 @@ package e2e
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -36,7 +38,7 @@ type commandResult struct {
 
 type executor func(ctx context.Context, command []string, workDir string) (commandResult, error)
 
-var commandBlockKeys = []string{"code", "bash", "sh", "shell"}
+var commandBlockKeys = []string{"command", "code", "bash", "sh", "shell"}
 
 func Run(ctx context.Context, specDir string, out io.Writer) error {
 	return runWithExecutor(ctx, specDir, out, runCommand)
@@ -270,14 +272,14 @@ func validateResult(testCase Case, result commandResult) []string {
 	if testCase.StdoutEquals != "" {
 		expected := normalizeExpectedOutput(testCase.StdoutEquals)
 		actual := normalizeExpectedOutput(result.stdout)
-		if actual != expected {
+		if !outputsEqual(expected, actual) {
 			assertions = append(assertions, fmt.Sprintf("stdout mismatch:\nexpected:\n%s\nactual:\n%s", expected, actual))
 		}
 	}
 	if testCase.StderrEquals != "" {
 		expected := normalizeExpectedOutput(testCase.StderrEquals)
 		actual := normalizeExpectedOutput(result.stderr)
-		if actual != expected {
+		if !outputsEqual(expected, actual) {
 			assertions = append(assertions, fmt.Sprintf("stderr mismatch:\nexpected:\n%s\nactual:\n%s", expected, actual))
 		}
 	}
@@ -372,15 +374,18 @@ func toStringSlice(value any) []string {
 
 func parseCommandBlock(text string) []string {
 	lines := strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
-	command := make([]string, 0, len(lines))
+	nonEmpty := make([]string, 0, len(lines))
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" {
 			continue
 		}
-		command = append(command, trimmed)
+		nonEmpty = append(nonEmpty, trimmed)
 	}
-	return command
+	if len(nonEmpty) == 1 {
+		return strings.Fields(nonEmpty[0])
+	}
+	return nonEmpty
 }
 
 func toExpectedText(value any) string {
@@ -388,7 +393,7 @@ func toExpectedText(value any) string {
 	case string:
 		return typed
 	case map[string]any:
-		for _, key := range []string{"description", "text", "code", "json", "yaml", "markdown", "md"} {
+		for _, key := range []string{"description", "expected", "text", "command", "code", "json", "yaml", "markdown", "md"} {
 			if nested, ok := findField(typed, key); ok {
 				return toExpectedText(nested)
 			}
@@ -400,6 +405,33 @@ func toExpectedText(value any) string {
 func normalizeExpectedOutput(value string) string {
 	normalized := strings.ReplaceAll(value, "\r\n", "\n")
 	return strings.TrimRight(normalized, "\n")
+}
+
+func outputsEqual(expected string, actual string) bool {
+	if actual == expected {
+		return true
+	}
+
+	expectedJSON, expectedJSONErr := decodeJSON(expected)
+	actualJSON, actualJSONErr := decodeJSON(actual)
+	if expectedJSONErr == nil && actualJSONErr == nil {
+		return reflect.DeepEqual(expectedJSON, actualJSON)
+	}
+
+	return false
+}
+
+func decodeJSON(value string) (any, error) {
+	decoder := json.NewDecoder(strings.NewReader(strings.TrimSpace(value)))
+	decoder.UseNumber()
+	var decoded any
+	if err := decoder.Decode(&decoded); err != nil {
+		return nil, err
+	}
+	if decoder.More() {
+		return nil, errors.New("multiple JSON values")
+	}
+	return decoded, nil
 }
 
 func loadExpectedFile(specPath string, relativePath string) (string, error) {

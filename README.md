@@ -96,7 +96,9 @@ mdxs-parser parse <file> [--json|--markdown]
 mdxs-parser e2e [spec-dir]
 ```
 
-各テストケースはトップレベル見出しで定義し、`command` / `stdout equals` / `stderr equals` / `stdout equals file` / `stderr equals file` / `stdout contains` / `stderr contains` / `stdout not contains` / `stderr not contains` / `exit code` を見出しとして指定できます。
+各テストケースはトップレベル見出しで定義し、`command` / `stdout equals` / `stderr equals` / `stdout equals file` / `stderr equals file` / `stdout contains` / `stderr contains` / `stdout not contains` / `stderr not contains` / `exit code` を見出しとして指定できます。  
+`command` や expected はコードブロック（例: ````command`...` ```` / ````expected`...` ````）でも記述できます。  
+`stdout equals` / `stderr equals` が JSON 文字列の場合は、整形差分ではなくデータ同値で比較されます。
 
 ### パースルール
 

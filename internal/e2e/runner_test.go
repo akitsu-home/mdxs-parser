@@ -182,3 +182,40 @@ expected/out.txt
 		t.Fatalf("expected PASS in output: %s", output.String())
 	}
 }
+
+func TestRunWithExecutor_CommandCodeBlock(t *testing.T) {
+	t.Parallel()
+
+	specDir := t.TempDir()
+	specPath := filepath.Join(specDir, "command-block.md")
+	spec := "# command block\n\n## command\n\n```command\ncmd\n--flag\n```\n\n## stdout equals\n\n```expected\nok\n```\n"
+	if err := os.WriteFile(specPath, []byte(spec), 0o644); err != nil {
+		t.Fatalf("write spec: %v", err)
+	}
+
+	var output bytes.Buffer
+	err := runWithExecutor(context.Background(), specDir, &output, func(_ context.Context, command []string, _ string) (commandResult, error) {
+		if strings.Join(command, " ") != "cmd --flag" {
+			return commandResult{}, fmt.Errorf("unexpected command: %v", command)
+		}
+		return commandResult{stdout: "ok\n", stderr: "", exitCode: 0}, nil
+	})
+	if err != nil {
+		t.Fatalf("expected command block case to pass: %v", err)
+	}
+}
+
+func TestValidateResult_JSONSemanticEquals(t *testing.T) {
+	t.Parallel()
+
+	testCase := Case{
+		StdoutEquals: "{\n  \"a\": 1,\n  \"b\": [\n    1,\n    2\n  ]\n}",
+	}
+	result := commandResult{
+		stdout: "{\"b\":[1,2],\"a\":1}\n",
+	}
+	assertions := validateResult(testCase, result)
+	if len(assertions) != 0 {
+		t.Fatalf("expected semantic JSON match without assertions: %v", assertions)
+	}
+}
