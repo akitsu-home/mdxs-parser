@@ -108,3 +108,77 @@ func TestRunWithExecutor_InvalidSpec(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func TestRunWithExecutor_ExactOutputAssertion(t *testing.T) {
+	t.Parallel()
+
+	specDir := t.TempDir()
+	specPath := filepath.Join(specDir, "exact.md")
+	spec := `# exact
+
+## command
+
+- cmd
+
+## stdout equals
+
+expected output
+
+## stderr equals
+
+error output
+`
+	if err := os.WriteFile(specPath, []byte(spec), 0o644); err != nil {
+		t.Fatalf("write spec: %v", err)
+	}
+
+	var output bytes.Buffer
+	err := runWithExecutor(context.Background(), specDir, &output, func(_ context.Context, _ []string, _ string) (commandResult, error) {
+		return commandResult{stdout: "expected output\n", stderr: "error output\n", exitCode: 0}, nil
+	})
+	if err != nil {
+		t.Fatalf("expected exact assertions to pass: %v", err)
+	}
+	if !strings.Contains(output.String(), "PASS") {
+		t.Fatalf("expected PASS in output: %s", output.String())
+	}
+}
+
+func TestRunWithExecutor_ExactOutputFromFile(t *testing.T) {
+	t.Parallel()
+
+	specDir := t.TempDir()
+	expectedDir := filepath.Join(specDir, "expected")
+	if err := os.MkdirAll(expectedDir, 0o755); err != nil {
+		t.Fatalf("mkdir expected: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(expectedDir, "out.txt"), []byte("from-file\n"), 0o644); err != nil {
+		t.Fatalf("write expected file: %v", err)
+	}
+
+	specPath := filepath.Join(specDir, "exact-file.md")
+	spec := `# exact from file
+
+## command
+
+- cmd
+
+## stdout equals file
+
+expected/out.txt
+`
+	if err := os.WriteFile(specPath, []byte(spec), 0o644); err != nil {
+		t.Fatalf("write spec: %v", err)
+	}
+
+	var output bytes.Buffer
+	err := runWithExecutor(context.Background(), specDir, &output, func(_ context.Context, _ []string, _ string) (commandResult, error) {
+		return commandResult{stdout: "from-file\n", stderr: "", exitCode: 0}, nil
+	})
+	if err != nil {
+		t.Fatalf("expected file-based exact assertion to pass: %v", err)
+	}
+	if !strings.Contains(output.String(), "PASS") {
+		t.Fatalf("expected PASS in output: %s", output.String())
+	}
+}

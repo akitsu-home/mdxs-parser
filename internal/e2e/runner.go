@@ -19,6 +19,8 @@ import (
 type Case struct {
 	Name              string
 	Command           []string
+	StdoutEquals      string
+	StderrEquals      string
 	StdoutContains    []string
 	StderrContains    []string
 	StdoutNotContains []string
@@ -97,6 +99,9 @@ func discoverSpecFiles(specDir string) ([]string, error) {
 			return walkErr
 		}
 		if d.IsDir() {
+			if d.Name() == "expected" {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		extension := strings.ToLower(filepath.Ext(path))
@@ -140,7 +145,7 @@ func loadCases(path string) ([]Case, error) {
 		if !ok {
 			return nil, fmt.Errorf("spec %q in %q must be a heading section", name, path)
 		}
-		testCase, err := parseCase(name, raw)
+		testCase, err := parseCase(path, name, raw)
 		if err != nil {
 			return nil, fmt.Errorf("spec %q in %q: %w", name, path, err)
 		}
@@ -150,7 +155,7 @@ func loadCases(path string) ([]Case, error) {
 	return cases, nil
 }
 
-func parseCase(name string, raw map[string]any) (Case, error) {
+func parseCase(specPath string, name string, raw map[string]any) (Case, error) {
 	command, err := getCommand(raw)
 	if err != nil {
 		return Case{}, err
@@ -165,9 +170,33 @@ func parseCase(name string, raw map[string]any) (Case, error) {
 		exitCode = parsedExitCode
 	}
 
+	stdoutEquals := toExpectedText(findFieldValue(raw, "stdout_equals"))
+	if stdoutEquals == "" {
+		expectedPath, ok := findField(raw, "stdout_equals_file")
+		if ok {
+			stdoutEquals, err = loadExpectedFile(specPath, toExpectedText(expectedPath))
+			if err != nil {
+				return Case{}, err
+			}
+		}
+	}
+
+	stderrEquals := toExpectedText(findFieldValue(raw, "stderr_equals"))
+	if stderrEquals == "" {
+		expectedPath, ok := findField(raw, "stderr_equals_file")
+		if ok {
+			stderrEquals, err = loadExpectedFile(specPath, toExpectedText(expectedPath))
+			if err != nil {
+				return Case{}, err
+			}
+		}
+	}
+
 	return Case{
 		Name:              name,
 		Command:           command,
+		StdoutEquals:      stdoutEquals,
+		StderrEquals:      stderrEquals,
 		StdoutContains:    toStringSlice(findFieldValue(raw, "stdout_contains")),
 		StderrContains:    toStringSlice(findFieldValue(raw, "stderr_contains")),
 		StdoutNotContains: toStringSlice(findFieldValue(raw, "stdout_not_contains")),
@@ -236,6 +265,21 @@ func validateResult(testCase Case, result commandResult) []string {
 
 	if testCase.ExitCode != result.exitCode {
 		assertions = append(assertions, fmt.Sprintf("exit code mismatch: expected %d got %d", testCase.ExitCode, result.exitCode))
+	}
+
+	if testCase.StdoutEquals != "" {
+		expected := normalizeExpectedOutput(testCase.StdoutEquals)
+		actual := normalizeExpectedOutput(result.stdout)
+		if actual != expected {
+			assertions = append(assertions, fmt.Sprintf("stdout mismatch:\nexpected:\n%s\nactual:\n%s", expected, actual))
+		}
+	}
+	if testCase.StderrEquals != "" {
+		expected := normalizeExpectedOutput(testCase.StderrEquals)
+		actual := normalizeExpectedOutput(result.stderr)
+		if actual != expected {
+			assertions = append(assertions, fmt.Sprintf("stderr mismatch:\nexpected:\n%s\nactual:\n%s", expected, actual))
+		}
 	}
 
 	for _, expected := range testCase.StdoutContains {
@@ -337,6 +381,38 @@ func parseCommandBlock(text string) []string {
 		command = append(command, trimmed)
 	}
 	return command
+}
+
+func toExpectedText(value any) string {
+	switch typed := value.(type) {
+	case string:
+		return typed
+	case map[string]any:
+		for _, key := range []string{"description", "text", "code", "json", "yaml", "markdown", "md"} {
+			if nested, ok := findField(typed, key); ok {
+				return toExpectedText(nested)
+			}
+		}
+	}
+	return ""
+}
+
+func normalizeExpectedOutput(value string) string {
+	normalized := strings.ReplaceAll(value, "\r\n", "\n")
+	return strings.TrimRight(normalized, "\n")
+}
+
+func loadExpectedFile(specPath string, relativePath string) (string, error) {
+	trimmed := strings.TrimSpace(relativePath)
+	if trimmed == "" {
+		return "", errors.New("'stdout_equals_file' and 'stderr_equals_file' must not be empty")
+	}
+	resolvedPath := filepath.Clean(filepath.Join(filepath.Dir(specPath), trimmed))
+	content, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return "", fmt.Errorf("read expected output file %q: %w", resolvedPath, err)
+	}
+	return string(content), nil
 }
 
 func findFieldValue(values map[string]any, normalized string) any {

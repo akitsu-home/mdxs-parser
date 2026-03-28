@@ -96,7 +96,7 @@ mdxs-parser parse <file> [--json|--markdown]
 mdxs-parser e2e [spec-dir]
 ```
 
-各テストケースはトップレベル見出しで定義し、`command` / `stdout contains` / `stderr contains` / `stdout not contains` / `stderr not contains` / `exit code` を見出しとして指定できます。
+各テストケースはトップレベル見出しで定義し、`command` / `stdout equals` / `stderr equals` / `stdout equals file` / `stderr equals file` / `stdout contains` / `stderr contains` / `stdout not contains` / `stderr not contains` / `exit code` を見出しとして指定できます。
 
 ### パースルール
 

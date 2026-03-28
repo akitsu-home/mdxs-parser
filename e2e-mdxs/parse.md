@@ -9,11 +9,9 @@
 - examples/service.md
 - --json
 
-## stdout contains
+## stdout equals file
 
-- metadata
-- Service
-- Runtime Details
+expected/service.json
 
 ## stderr not contains
 
@@ -30,14 +28,9 @@
 - examples/service.md
 - --markdown
 
-## stdout contains
+## stdout equals file
 
-- ## Runtime Details
-- Visit [project page](https://example.com/project).
-
-## stdout not contains
-
-- [Runtime details](runtime.md#runtime-details)
+expected/service.markdown
 
 ## stderr not contains
 
