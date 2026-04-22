@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"encoding/json"
 )
 
 var linkPattern = regexp.MustCompile(`\[[^\]]+\]\(([^)]+)\)`)
@@ -55,10 +56,23 @@ func expandMarkdownLinksWithMode(content string, currentPath string, stack map[s
 			}
 		}
 
+		includedMeta, includedBody, fmErr := parseFrontMatter(included)
+		if fmErr != nil {
+			return "", fmErr
+		}
+		included = strings.TrimPrefix(includedBody, "\n")
 		included = strings.TrimSuffix(included, "\n")
 		if preserveContext {
 			builder.WriteString(includeStart)
 			builder.WriteByte('\n')
+			if len(includedMeta) > 0 {
+				if metaJSON, jsonErr := json.Marshal(includedMeta); jsonErr == nil {
+					builder.WriteString(includeMetadataPrefix)
+					builder.Write(metaJSON)
+					builder.WriteString(includeMetadataSuffix)
+					builder.WriteByte('\n')
+				}
+			}
 			builder.WriteString(included)
 			builder.WriteByte('\n')
 			builder.WriteString(includeEnd)

@@ -8,5 +8,5 @@ testtesttest
 
 ## test
 
-[part1-1](./part1-1.md)
+ん？
 

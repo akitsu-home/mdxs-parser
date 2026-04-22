@@ -211,3 +211,137 @@ func TestParseMarkdown_FrontMatterCanCloseWithDots(t *testing.T) {
 		t.Fatalf("unexpected metadata title: %#v", metadata["title"])
 	}
 }
+
+func TestRenderJSON_IncludedFileWithFrontMatter(t *testing.T) {
+	tempDir := t.TempDir()
+	childPath := filepath.Join(tempDir, "child.md")
+	mainPath := filepath.Join(tempDir, "main.md")
+
+	// child.md: Front Matter + level-3 heading (nests under level-2 Section)
+	if err := os.WriteFile(childPath, []byte("---\ntitle: Child Title\nauthor: Alice\n---\n\n### Details\n\nSome details.\n"), 0o644); err != nil {
+		t.Fatalf("write child markdown: %v", err)
+	}
+
+	if err := os.WriteFile(mainPath, []byte("# Root\n\n## Section\n\n[child](child.md)\n"), 0o644); err != nil {
+		t.Fatalf("write main markdown: %v", err)
+	}
+
+	output, err := RenderJSON(mainPath)
+	if err != nil {
+		t.Fatalf("RenderJSON returned error: %v", err)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(output, &parsed); err != nil {
+		t.Fatalf("unmarshal output: %v", err)
+	}
+
+	body, ok := parsed["body"].(map[string]any)
+	if !ok {
+		t.Fatalf("body missing: %#v", parsed["body"])
+	}
+	root, ok := body["Root"].(map[string]any)
+	if !ok {
+		t.Fatalf("Root missing: %#v", body)
+	}
+	section, ok := root["Section"].(map[string]any)
+	if !ok {
+		t.Fatalf("Section missing: %#v", root)
+	}
+
+	if section["title"] != "Child Title" {
+		t.Fatalf("expected title from front matter, got: %#v", section["title"])
+	}
+	if section["author"] != "Alice" {
+		t.Fatalf("expected author from front matter, got: %#v", section["author"])
+	}
+
+	details, ok := section["Details"].(map[string]any)
+	if !ok {
+		t.Fatalf("Details sub-section missing: %#v", section)
+	}
+	if details["description"] != "Some details." {
+		t.Fatalf("unexpected Details description: %#v", details["description"])
+	}
+}
+
+func TestRenderMarkdown_StripsIncludedFrontMatter(t *testing.T) {
+	tempDir := t.TempDir()
+	mainPath := filepath.Join(tempDir, "main.md")
+	childPath := filepath.Join(tempDir, "child.md")
+
+	if err := os.WriteFile(childPath, []byte("---\ntitle: foo\n---\n\n## Included\n\nIncluded text.\n"), 0o644); err != nil {
+		t.Fatalf("write child markdown: %v", err)
+	}
+
+	if err := os.WriteFile(mainPath, []byte("# Root\n\n[Local](child.md)\n"), 0o644); err != nil {
+		t.Fatalf("write main markdown: %v", err)
+	}
+
+	output, err := RenderMarkdown(mainPath)
+	if err != nil {
+		t.Fatalf("RenderMarkdown returned error: %v", err)
+	}
+
+	expected := "# Root\n\n## Included\n\nIncluded text.\n"
+	if output != expected {
+		t.Fatalf("unexpected expanded markdown:\nexpected:\n%s\ngot:\n%s", expected, output)
+	}
+}
+
+func TestRenderJSON_IncludedTopHeadingDoesNotEscapeParentSection(t *testing.T) {
+	tempDir := t.TempDir()
+	mainPath := filepath.Join(tempDir, "main.md")
+	childPath := filepath.Join(tempDir, "child.md")
+
+	if err := os.WriteFile(childPath, []byte("---\ntitle: Hello World\n---\n\n# hello\n\ntesttesttest\n"), 0o644); err != nil {
+		t.Fatalf("write child markdown: %v", err)
+	}
+
+	if err := os.WriteFile(mainPath, []byte("# Runtime\n\n## Runtime Details\n\n### Part 1\n\n[part1](child.md)\n"), 0o644); err != nil {
+		t.Fatalf("write main markdown: %v", err)
+	}
+
+	output, err := RenderJSON(mainPath)
+	if err != nil {
+		t.Fatalf("RenderJSON returned error: %v", err)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(output, &parsed); err != nil {
+		t.Fatalf("unmarshal output: %v", err)
+	}
+
+	body, ok := parsed["body"].(map[string]any)
+	if !ok {
+		t.Fatalf("body missing: %#v", parsed["body"])
+	}
+
+	runtimeSection, ok := body["Runtime"].(map[string]any)
+	if !ok {
+		t.Fatalf("Runtime section missing: %#v", body)
+	}
+	details, ok := runtimeSection["Runtime Details"].(map[string]any)
+	if !ok {
+		t.Fatalf("Runtime Details section missing: %#v", runtimeSection)
+	}
+	part1, ok := details["Part 1"].(map[string]any)
+	if !ok {
+		t.Fatalf("Part 1 section missing: %#v", details)
+	}
+
+	if part1["title"] != "Hello World" {
+		t.Fatalf("expected title in Part 1: %#v", part1["title"])
+	}
+	hello, ok := part1["hello"].(map[string]any)
+	if !ok {
+		t.Fatalf("hello should be nested in Part 1: %#v", part1)
+	}
+	if hello["description"] != "testtesttest" {
+		t.Fatalf("unexpected hello description: %#v", hello["description"])
+	}
+
+	if _, exists := body["hello"]; exists {
+		t.Fatalf("hello section must not exist at root: %#v", body["hello"])
+	}
+}

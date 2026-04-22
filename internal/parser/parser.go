@@ -15,6 +15,8 @@ const (
 	defaultCodeKey = "code"
 	includeStart   = "<!-- mdxs-parser:include-start -->"
 	includeEnd     = "<!-- mdxs-parser:include-end -->"
+	includeMetadataPrefix = "<!-- mdxs-parser:include-metadata "
+	includeMetadataSuffix = " -->"
 )
 
 var (
@@ -87,6 +89,7 @@ func ParseMarkdown(markdown string) (map[string]any, error) {
 	root := map[string]any{}
 	stack := []section{{level: 0, node: root, childTitles: map[string]struct{}{}}}
 	stackSnapshots := [][]section{}
+	includeBaseLevels := []int{}
 	lines := strings.Split(bodyMarkdown, "\n")
 
 	var (
@@ -220,6 +223,19 @@ func ParseMarkdown(markdown string) (map[string]any, error) {
 			flushParagraph()
 			flushList()
 			stackSnapshots = append(stackSnapshots, copyStack(stack))
+			includeBaseLevels = append(includeBaseLevels, currentSection().level)
+			continue
+		}
+
+		if strings.HasPrefix(trimmed, includeMetadataPrefix) && strings.HasSuffix(trimmed, includeMetadataSuffix) {
+			jsonStr := trimmed[len(includeMetadataPrefix) : len(trimmed)-len(includeMetadataSuffix)]
+			var meta map[string]any
+			if err := json.Unmarshal([]byte(jsonStr), &meta); err == nil {
+				node := currentNode()
+				for k, v := range meta {
+					addValue(node, k, v)
+				}
+			}
 			continue
 		}
 
@@ -231,6 +247,9 @@ func ParseMarkdown(markdown string) (map[string]any, error) {
 			}
 			stack = copyStack(stackSnapshots[len(stackSnapshots)-1])
 			stackSnapshots = stackSnapshots[:len(stackSnapshots)-1]
+			if len(includeBaseLevels) > 0 {
+				includeBaseLevels = includeBaseLevels[:len(includeBaseLevels)-1]
+			}
 			continue
 		}
 
@@ -239,6 +258,12 @@ func ParseMarkdown(markdown string) (map[string]any, error) {
 			flushList()
 
 			level := len(matches[1])
+			if len(includeBaseLevels) > 0 {
+				minimum := includeBaseLevels[len(includeBaseLevels)-1] + 1
+				if level < minimum {
+					level = minimum
+				}
+			}
 			title := sanitizeText(matches[2])
 			current := currentSection()
 			if (current.contentKind == contentKindList || current.contentKind == contentKindTable) && level > current.level {
