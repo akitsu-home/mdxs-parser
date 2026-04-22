@@ -371,6 +371,31 @@ func TestRenderMarkdown_ImportsCodeBlockContent(t *testing.T) {
 	}
 }
 
+func TestRenderMarkdown_AdjustsIncludedHeadingLevels(t *testing.T) {
+	tempDir := t.TempDir()
+	mainPath := filepath.Join(tempDir, "main.md")
+	childPath := filepath.Join(tempDir, "child.md")
+
+	if err := os.WriteFile(childPath, []byte("# hello\n\ntesttesttest\n\n## test\n\nん？\n"), 0o644); err != nil {
+		t.Fatalf("write child markdown: %v", err)
+	}
+
+	markdown := "# Runtime\n\n## Runtime Details\n\n### Part 1\n\n[part1](child.md)\n"
+	if err := os.WriteFile(mainPath, []byte(markdown), 0o644); err != nil {
+		t.Fatalf("write main markdown: %v", err)
+	}
+
+	output, err := RenderMarkdown(mainPath)
+	if err != nil {
+		t.Fatalf("RenderMarkdown returned error: %v", err)
+	}
+
+	expected := "# Runtime\n\n## Runtime Details\n\n### Part 1\n\n#### hello\n\ntesttesttest\n\n##### test\n\nん？\n"
+	if output != expected {
+		t.Fatalf("unexpected markdown output:\nexpected:\n%s\ngot:\n%s", expected, output)
+	}
+}
+
 func TestRenderJSON_ImportsCodeBlockContent(t *testing.T) {
 	tempDir := t.TempDir()
 	mainPath := filepath.Join(tempDir, "main.md")

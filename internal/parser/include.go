@@ -119,6 +119,7 @@ func expandMarkdownLinksWithMode(content string, currentPath string, stack map[s
 			builder.WriteByte('\n')
 			builder.WriteString(includeEnd)
 		} else {
+			included = adjustIncludedHeadingLevels(included, enclosingHeadingLevel(content[:start]))
 			builder.WriteString(included)
 		}
 		lastIndex = end
@@ -130,6 +131,95 @@ func expandMarkdownLinksWithMode(content string, currentPath string, stack map[s
 
 	builder.WriteString(content[lastIndex:])
 	return builder.String(), nil
+}
+
+func enclosingHeadingLevel(content string) int {
+	lines := strings.Split(strings.ReplaceAll(content, "\r\n", "\n"), "\n")
+	level := 0
+	inCodeBlock := false
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "```") {
+			inCodeBlock = !inCodeBlock
+			continue
+		}
+		if inCodeBlock {
+			continue
+		}
+		matches := headingPattern.FindStringSubmatch(trimmed)
+		if matches != nil {
+			level = len(matches[1])
+		}
+	}
+
+	return level
+}
+
+func adjustIncludedHeadingLevels(content string, parentLevel int) string {
+	if parentLevel <= 0 || content == "" {
+		return content
+	}
+
+	lines := strings.Split(strings.ReplaceAll(content, "\r\n", "\n"), "\n")
+	inCodeBlock := false
+	minLevel := 0
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "```") {
+			inCodeBlock = !inCodeBlock
+			continue
+		}
+		if inCodeBlock {
+			continue
+		}
+
+		matches := headingPattern.FindStringSubmatch(line)
+		if matches == nil {
+			continue
+		}
+
+		level := len(matches[1])
+		if minLevel == 0 || level < minLevel {
+			minLevel = level
+		}
+	}
+
+	if minLevel == 0 {
+		return content
+	}
+
+	shift := (parentLevel + 1) - minLevel
+	if shift <= 0 {
+		return content
+	}
+
+	inCodeBlock = false
+
+	for index, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "```") {
+			inCodeBlock = !inCodeBlock
+			continue
+		}
+		if inCodeBlock {
+			continue
+		}
+
+		matches := headingPattern.FindStringSubmatch(line)
+		if matches == nil {
+			continue
+		}
+
+		level := len(matches[1]) + shift
+		if level > 6 {
+			level = 6
+		}
+		lines[index] = strings.Repeat("#", level) + " " + matches[2]
+	}
+
+	return strings.Join(lines, "\n")
 }
 
 func shouldInclude(target string) bool {

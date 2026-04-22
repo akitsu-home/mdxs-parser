@@ -4,6 +4,7 @@ Markdown を構造化 JSON に変換できる Go 製 CLI ツールです。
 見出しをオブジェクト階層として扱い、リスト、コードブロック、テーブル、段落を JSON に変換できます。
 YAML フロントマターは `metadata` として抽出し、それ以外の本文は `body` に格納します。
 また、相対パスの Markdown リンクをインクルードとして展開し、JSON または展開済み Markdown を出力できます。
+インクルード先の Front Matter も取り込まれ、コードブロック内の `# import(...)` 記法で任意拡張子のファイル内容を埋め込めます。
 
 ## 主な機能
 
@@ -11,6 +12,8 @@ YAML フロントマターは `metadata` として抽出し、それ以外の本
 - 段落を `description`、リストを `list`、テーブルをオブジェクト配列として変換
 - コードブロックをフェンス直後の言語名キーで格納
 - 相対パスの Markdown リンクをインクルードとして展開
+- インクルード先の Front Matter を親セクションの属性として取り込み
+- コードブロック内の `# import(path)` で任意ファイルを埋め込み
 - `--json` で JSON 出力、`--markdown` で展開済み Markdown を出力
 - `version` コマンドで version / commit / build date を表示
 - `completion` コマンドで shell completion を生成
@@ -86,16 +89,20 @@ mdxs-parser parse <file> [--json|--markdown]
 
 - `--json`: JSON で出力します（デフォルト）
 - `--markdown`: 相対パスの Markdown リンクを展開した Markdown を出力します
+  - インクルードされた見出しは、差し込み先の親見出し配下に入るように自動で階層補正されます
 
 ### パースルール
 
 - ヘッダーはネストしたオブジェクトのキーになります
 - YAML フロントマター（先頭の `---` ... `---`）は `metadata` に格納されます
+- インクルードした Markdown の Front Matter は、差し込み先セクションの属性として格納されます
 - 本文のパース結果は `body` に格納されます
 - 段落は `description` に格納されます
 - リストは `list` 配列に格納されます
 - コードブロックはフェンスの言語名をキーにした文字列として格納されます
   - 言語名がない場合は `code` キーになります
+  - コードブロックの 1 行目が `# import(path)` の場合は、そのファイル内容でコードブロックを置き換えます
+  - `path` は Markdown ファイルからの相対パスで、拡張子の制限はありません
 - テーブルはオブジェクトの配列として格納されます
 - ボールドやイタリックなどの文字装飾は無視されます
 - Web リンクはそのまま残り、相対パスの Markdown リンクだけが展開対象になります
@@ -107,7 +114,15 @@ mdxs-parser parse <file> [--json|--markdown]
 ```bash
 mdxs-parser parse examples/service.md --json
 mdxs-parser parse examples/service.md --markdown
+mdxs-parser parse examples/runtime.md --json
+mdxs-parser parse examples/runtime.md --markdown
 ```
+
+`examples/runtime.md` では次の機能を確認できます。
+
+- Markdown リンクによる別ファイルのインクルード
+- インクルード先 Front Matter の属性取り込み
+- コードブロック内 `# import(./runtime/hello.py)` によるソース埋め込み
 
 `examples/service.md` の内容:
 
