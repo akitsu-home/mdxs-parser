@@ -1,19 +1,61 @@
 package parser
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
-	"encoding/json"
 )
 
 var linkPattern = regexp.MustCompile(`\[[^\]]+\]\(([^)]+)\)`)
+var codeImportPattern = regexp.MustCompile("(?ms)```([^\\n]*)\\n\\s*#\\s*import\\(([^)\\n]+)\\)\\s*\\n```")
 
 func expandMarkdownLinks(content string, currentPath string, stack map[string]bool) (string, error) {
 	return expandMarkdownLinksWithMode(content, currentPath, stack, false)
+}
+
+func expandCodeImports(content string, currentPath string) (string, error) {
+	matches := codeImportPattern.FindAllStringSubmatchIndex(content, -1)
+	if len(matches) == 0 {
+		return content, nil
+	}
+
+	var builder strings.Builder
+	lastIndex := 0
+
+	for _, match := range matches {
+		start := match[0]
+		end := match[1]
+		infoStart := match[2]
+		infoEnd := match[3]
+		targetStart := match[4]
+		targetEnd := match[5]
+
+		builder.WriteString(content[lastIndex:start])
+
+		info := content[infoStart:infoEnd]
+		target := strings.TrimSpace(content[targetStart:targetEnd])
+		resolvedPath := filepath.Clean(filepath.Join(filepath.Dir(currentPath), target))
+		imported, err := os.ReadFile(resolvedPath)
+		if err != nil {
+			return "", fmt.Errorf("read import file %q: %w", resolvedPath, err)
+		}
+
+		builder.WriteString("```")
+		builder.WriteString(info)
+		builder.WriteByte('\n')
+		builder.WriteString(strings.TrimSuffix(strings.ReplaceAll(string(imported), "\r\n", "\n"), "\n"))
+		builder.WriteByte('\n')
+		builder.WriteString("```")
+
+		lastIndex = end
+	}
+
+	builder.WriteString(content[lastIndex:])
+	return builder.String(), nil
 }
 
 func expandMarkdownLinksWithMode(content string, currentPath string, stack map[string]bool, preserveContext bool) (string, error) {
@@ -197,5 +239,10 @@ func expandFileWithMode(path string, stack map[string]bool, preserveContext bool
 		return "", fmt.Errorf("read markdown file %q: %w", path, err)
 	}
 
-	return expandMarkdownLinksWithMode(string(content), path, stack, preserveContext)
+	expandedImports, err := expandCodeImports(string(content), path)
+	if err != nil {
+		return "", err
+	}
+
+	return expandMarkdownLinksWithMode(expandedImports, path, stack, preserveContext)
 }

@@ -17,6 +17,12 @@ environment: production
 
 [part1](./runtime/part1.md)
 
+### Script Import
+
+```python
+# import(./runtime/hello.py)
+```
+
 ### Platforms
 
 - linux

@@ -345,3 +345,69 @@ func TestRenderJSON_IncludedTopHeadingDoesNotEscapeParentSection(t *testing.T) {
 		t.Fatalf("hello section must not exist at root: %#v", body["hello"])
 	}
 }
+
+func TestRenderMarkdown_ImportsCodeBlockContent(t *testing.T) {
+	tempDir := t.TempDir()
+	mainPath := filepath.Join(tempDir, "main.md")
+	codePath := filepath.Join(tempDir, "test.python")
+
+	if err := os.WriteFile(codePath, []byte("print('hello')\nprint('world')\n"), 0o644); err != nil {
+		t.Fatalf("write code file: %v", err)
+	}
+
+	markdown := "# Root\n\n```\n# import(./test.python)\n```\n"
+	if err := os.WriteFile(mainPath, []byte(markdown), 0o644); err != nil {
+		t.Fatalf("write main markdown: %v", err)
+	}
+
+	output, err := RenderMarkdown(mainPath)
+	if err != nil {
+		t.Fatalf("RenderMarkdown returned error: %v", err)
+	}
+
+	expected := "# Root\n\n```\nprint('hello')\nprint('world')\n```\n"
+	if output != expected {
+		t.Fatalf("unexpected markdown output:\nexpected:\n%s\ngot:\n%s", expected, output)
+	}
+}
+
+func TestRenderJSON_ImportsCodeBlockContent(t *testing.T) {
+	tempDir := t.TempDir()
+	mainPath := filepath.Join(tempDir, "main.md")
+	codePath := filepath.Join(tempDir, "test.python")
+
+	if err := os.WriteFile(codePath, []byte("print('hello')\nprint('world')\n"), 0o644); err != nil {
+		t.Fatalf("write code file: %v", err)
+	}
+
+	markdown := "# Root\n\n## Script\n\n```\n# import(./test.python)\n```\n"
+	if err := os.WriteFile(mainPath, []byte(markdown), 0o644); err != nil {
+		t.Fatalf("write main markdown: %v", err)
+	}
+
+	output, err := RenderJSON(mainPath)
+	if err != nil {
+		t.Fatalf("RenderJSON returned error: %v", err)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(output, &parsed); err != nil {
+		t.Fatalf("unmarshal output: %v", err)
+	}
+	body, ok := parsed["body"].(map[string]any)
+	if !ok {
+		t.Fatalf("body missing: %#v", parsed["body"])
+	}
+	root, ok := body["Root"].(map[string]any)
+	if !ok {
+		t.Fatalf("Root missing: %#v", body["Root"])
+	}
+	script, ok := root["Script"].(map[string]any)
+	if !ok {
+		t.Fatalf("Script missing: %#v", root["Script"])
+	}
+
+	if script["code"] != "print('hello')\nprint('world')" {
+		t.Fatalf("unexpected imported code: %#v", script["code"])
+	}
+}
