@@ -112,7 +112,12 @@ func expandIncludesWithOptions(path string, options MarkdownOptions) (string, er
 		return "", fmt.Errorf("resolve path %q: %w", path, err)
 	}
 
-	return expandFileWithOptions(absolutePath, map[string]bool{}, false, options)
+	expanded, err := expandFileWithOptions(absolutePath, map[string]bool{}, false, options)
+	if err != nil {
+		return "", err
+	}
+
+	return collapseCodeFences(expanded), nil
 }
 
 func ParseMarkdown(markdown string) (map[string]any, error) {

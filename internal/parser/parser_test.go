@@ -365,7 +365,27 @@ func TestRenderMarkdown_ImportsCodeBlockContent(t *testing.T) {
 		t.Fatalf("RenderMarkdown returned error: %v", err)
 	}
 
-	expected := "# Root\n\n```\nprint('hello')\nprint('world')\n```\n"
+	expected := "# Root\n\n<details>\n<summary>code</summary>\n\n```\nprint('hello')\nprint('world')\n```\n\n</details>\n"
+	if output != expected {
+		t.Fatalf("unexpected markdown output:\nexpected:\n%s\ngot:\n%s", expected, output)
+	}
+}
+
+func TestRenderMarkdown_CollapsesCodeFences(t *testing.T) {
+	tempDir := t.TempDir()
+	mainPath := filepath.Join(tempDir, "main.md")
+
+	markdown := "# Root\n\n```python\nprint('hello')\n```\n"
+	if err := os.WriteFile(mainPath, []byte(markdown), 0o644); err != nil {
+		t.Fatalf("write main markdown: %v", err)
+	}
+
+	output, err := RenderMarkdown(mainPath)
+	if err != nil {
+		t.Fatalf("RenderMarkdown returned error: %v", err)
+	}
+
+	expected := "# Root\n\n<details>\n<summary>python</summary>\n\n```python\nprint('hello')\n```\n\n</details>\n"
 	if output != expected {
 		t.Fatalf("unexpected markdown output:\nexpected:\n%s\ngot:\n%s", expected, output)
 	}
@@ -375,7 +395,7 @@ func TestRenderMarkdownWithOptions_LinksCodeBlockImport(t *testing.T) {
 	tempDir := t.TempDir()
 	mainPath := filepath.Join(tempDir, "main.md")
 
-	markdown := "# Root\n\n```python\n# import(./missing.py)\n```\n"
+	markdown := "# Root\n\n```bash\necho hello\n```\n\n```python\n# import(./missing.py)\n```\n"
 	if err := os.WriteFile(mainPath, []byte(markdown), 0o644); err != nil {
 		t.Fatalf("write main markdown: %v", err)
 	}
@@ -385,7 +405,7 @@ func TestRenderMarkdownWithOptions_LinksCodeBlockImport(t *testing.T) {
 		t.Fatalf("RenderMarkdownWithOptions returned error: %v", err)
 	}
 
-	expected := "# Root\n\n[python](./missing.py)\n"
+	expected := "# Root\n\n<details>\n<summary>bash</summary>\n\n```bash\necho hello\n```\n\n</details>\n\n[python](./missing.py)\n"
 	if output != expected {
 		t.Fatalf("unexpected markdown output:\nexpected:\n%s\ngot:\n%s", expected, output)
 	}

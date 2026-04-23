@@ -3,6 +3,7 @@ package parser
 import (
 	"encoding/json"
 	"fmt"
+	"html"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 
 var linkPattern = regexp.MustCompile(`\[[^\]]+\]\(([^)]+)\)`)
 var codeImportPattern = regexp.MustCompile("(?ms)```([^\\n]*)\\n\\s*#\\s*import\\(([^)\\n]+)\\)\\s*\\n```")
+var codeFencePattern = regexp.MustCompile("(?ms)```([^\\n]*)\\n(.*?)\\n```")
 
 func expandMarkdownLinks(content string, currentPath string, stack map[string]bool) (string, error) {
 	return expandMarkdownLinksWithOptions(content, currentPath, stack, false, MarkdownOptions{ImportMode: ImportModeEmbed})
@@ -74,6 +76,42 @@ func expandCodeImportsWithMode(content string, currentPath string, importMode Im
 
 	builder.WriteString(content[lastIndex:])
 	return builder.String(), nil
+}
+
+func collapseCodeFences(content string) string {
+	matches := codeFencePattern.FindAllStringSubmatchIndex(content, -1)
+	if len(matches) == 0 {
+		return content
+	}
+
+	var builder strings.Builder
+	lastIndex := 0
+
+	for _, match := range matches {
+		start := match[0]
+		end := match[1]
+		infoStart := match[2]
+		infoEnd := match[3]
+
+		builder.WriteString(content[lastIndex:start])
+
+		info := strings.TrimSpace(content[infoStart:infoEnd])
+		summary := info
+		if summary == "" {
+			summary = "code"
+		}
+
+		builder.WriteString("<details>\n<summary>")
+		builder.WriteString(html.EscapeString(summary))
+		builder.WriteString("</summary>\n\n")
+		builder.WriteString(content[start:end])
+		builder.WriteString("\n\n</details>")
+
+		lastIndex = end
+	}
+
+	builder.WriteString(content[lastIndex:])
+	return builder.String()
 }
 
 func expandMarkdownLinksWithMode(content string, currentPath string, stack map[string]bool, preserveContext bool) (string, error) {

@@ -67,7 +67,7 @@ func TestParseCommandMarkdownImportModeEmbed(t *testing.T) {
 		t.Fatalf("Execute returned error: %v", err)
 	}
 
-	expected := "# Root\n\n```\nprint('hello')\n```\n\n"
+	expected := "# Root\n\n<details>\n<summary>code</summary>\n\n```\nprint('hello')\n```\n\n</details>\n\n"
 	if output.String() != expected {
 		t.Fatalf("unexpected output:\nexpected:\n%s\ngot:\n%s", expected, output.String())
 	}

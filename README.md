@@ -91,6 +91,7 @@ mdxs-parser parse <file> [--json|--markdown] [--import-mode=embed|link]
 - `--json`: JSON で出力します（デフォルト）
 - `--markdown`: 相対パスの Markdown リンクを展開した Markdown を出力します
   - インクルードされた見出しは、差し込み先の親見出し配下に入るように自動で階層補正されます
+  - コードフェンスは `<details>` で折りたためる形に変換されます
   - コードブロック内の `# import(path)` は、デフォルトではファイル内容を埋め込みます
 - `--import-mode=embed|link`: `--markdown` 出力時の `# import(path)` の扱いを選びます
   - `embed`: ファイル内容を埋め込みます（デフォルト）
@@ -108,6 +109,7 @@ mdxs-parser parse <file> [--json|--markdown] [--import-mode=embed|link]
   - 言語名がない場合は `code` キーになります
   - JSON 出力および `--markdown --import-mode=embed` では、コードブロックの 1 行目が `# import(path)` の場合、そのファイル内容でコードブロックを置き換えます
   - `--markdown --import-mode=link` では、`# import(path)` を `[言語名](path)` 形式の Markdown リンクに置き換えます。言語名がない場合は `[path](path)` になります
+  - `--markdown` 出力では、コードフェンスは言語名を summary にした collapsible block として出力されます
   - `path` は Markdown ファイルからの相対パスで、拡張子の制限はありません
 - テーブルはオブジェクトの配列として格納されます
 - ボールドやイタリックなどの文字装飾は無視されます
