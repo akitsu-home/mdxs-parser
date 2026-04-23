@@ -2,15 +2,13 @@
 
 Simple Export Json
 
-## Command
+## Test 1
 
-```bash
+```test
 go run cmd/mdxs-parser/main.go parse examples/simple/01.md --json
 ```
 
-## Expected
-
-```json
+```expected
 # import(./expect.json)
 ```
 

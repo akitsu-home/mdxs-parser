@@ -85,18 +85,36 @@ function readTestSpec(targetPath) {
     );
   }
 
-  const bashCommand = parsed?.body?.Test?.Command?.bash;
-  const expectedJson = parsed?.body?.Test?.Expected?.json;
+  const testRoot = parsed?.body?.Test;
 
-  if (typeof bashCommand !== "string" || bashCommand.length === 0) {
-    fail("missing required field body.Test.Command.bash");
+  if (!testRoot || typeof testRoot !== "object" || Array.isArray(testRoot)) {
+    fail("missing required field body.Test");
   }
 
-  if (typeof expectedJson !== "string") {
-    fail("missing required field body.Test.Expected.json");
+  const tests = Object.entries(testRoot)
+    .filter(([, value]) => value && typeof value === "object" && !Array.isArray(value))
+    .map(([name, value]) => ({
+      name,
+      command: value.test,
+      expected: value.expected,
+    }))
+    .filter(({ command, expected }) => command !== undefined || expected !== undefined);
+
+  if (tests.length === 0) {
+    fail("missing test cases under body.Test");
   }
 
-  return { bashCommand, expectedJson };
+  for (const { name, command, expected } of tests) {
+    if (typeof command !== "string" || command.length === 0) {
+      fail(`missing required field body.Test.${name}.test`);
+    }
+
+    if (typeof expected !== "string") {
+      fail(`missing required field body.Test.${name}.expected`);
+    }
+  }
+
+  return tests;
 }
 
 function shellQuote(value) {
@@ -144,20 +162,28 @@ if (!targetArg) {
 }
 
 const targetPath = resolveTargetPath(targetArg);
-const { bashCommand, expectedJson } = readTestSpec(targetPath);
-const actualJson = runCommand(bashCommand);
+const tests = readTestSpec(targetPath);
+let failed = false;
 
-if (actualJson !== expectedJson) {
-  console.error("Parse test failed: output did not match Expected.json");
+for (const { name, command, expected } of tests) {
+  const actual = runCommand(command);
+
+  if (actual === expected) {
+    continue;
+  }
+
+  console.error(`Parse test failed for ${name}: output did not match expected`);
   console.error("");
   console.error("Expected:");
-  console.error(expectedJson);
+  console.error(expected);
   console.error("");
   console.error("Actual:");
-  console.error(actualJson);
+  console.error(actual);
+  failed = true;
+}
+
+if (failed) {
   process.exit(1);
 }
 
-console.log(
-  `Parse test passed for ${targetPath}: output matched Expected.json`,
-);
+console.log(`Parse test passed for ${targetPath}: ${tests.length} test(s) matched expected output`);
