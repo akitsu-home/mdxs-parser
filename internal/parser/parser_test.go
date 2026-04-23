@@ -371,6 +371,71 @@ func TestRenderMarkdown_ImportsCodeBlockContent(t *testing.T) {
 	}
 }
 
+func TestRenderMarkdownWithOptions_LinksCodeBlockImport(t *testing.T) {
+	tempDir := t.TempDir()
+	mainPath := filepath.Join(tempDir, "main.md")
+
+	markdown := "# Root\n\n```python\n# import(./missing.py)\n```\n"
+	if err := os.WriteFile(mainPath, []byte(markdown), 0o644); err != nil {
+		t.Fatalf("write main markdown: %v", err)
+	}
+
+	output, err := RenderMarkdownWithOptions(mainPath, MarkdownOptions{ImportMode: ImportModeLink})
+	if err != nil {
+		t.Fatalf("RenderMarkdownWithOptions returned error: %v", err)
+	}
+
+	expected := "# Root\n\n[python](./missing.py)\n"
+	if output != expected {
+		t.Fatalf("unexpected markdown output:\nexpected:\n%s\ngot:\n%s", expected, output)
+	}
+}
+
+func TestRenderMarkdownWithOptions_LinkModeStillExpandsMarkdownIncludes(t *testing.T) {
+	tempDir := t.TempDir()
+	mainPath := filepath.Join(tempDir, "main.md")
+	childPath := filepath.Join(tempDir, "child.md")
+
+	if err := os.WriteFile(childPath, []byte("## Included\n\nIncluded text.\n"), 0o644); err != nil {
+		t.Fatalf("write child markdown: %v", err)
+	}
+
+	markdown := "# Root\n\n[child](child.md)\n\n```python\n# import(./missing.py)\n```\n"
+	if err := os.WriteFile(mainPath, []byte(markdown), 0o644); err != nil {
+		t.Fatalf("write main markdown: %v", err)
+	}
+
+	output, err := RenderMarkdownWithOptions(mainPath, MarkdownOptions{ImportMode: ImportModeLink})
+	if err != nil {
+		t.Fatalf("RenderMarkdownWithOptions returned error: %v", err)
+	}
+
+	expected := "# Root\n\n## Included\n\nIncluded text.\n\n[python](./missing.py)\n"
+	if output != expected {
+		t.Fatalf("unexpected markdown output:\nexpected:\n%s\ngot:\n%s", expected, output)
+	}
+}
+
+func TestRenderMarkdownWithOptions_LinkModeUsesPathWhenInfoStringIsEmpty(t *testing.T) {
+	tempDir := t.TempDir()
+	mainPath := filepath.Join(tempDir, "main.md")
+
+	markdown := "# Root\n\n```\n# import(./missing.py)\n```\n"
+	if err := os.WriteFile(mainPath, []byte(markdown), 0o644); err != nil {
+		t.Fatalf("write main markdown: %v", err)
+	}
+
+	output, err := RenderMarkdownWithOptions(mainPath, MarkdownOptions{ImportMode: ImportModeLink})
+	if err != nil {
+		t.Fatalf("RenderMarkdownWithOptions returned error: %v", err)
+	}
+
+	expected := "# Root\n\n[./missing.py](./missing.py)\n"
+	if output != expected {
+		t.Fatalf("unexpected markdown output:\nexpected:\n%s\ngot:\n%s", expected, output)
+	}
+}
+
 func TestRenderMarkdown_AdjustsIncludedHeadingLevels(t *testing.T) {
 	tempDir := t.TempDir()
 	mainPath := filepath.Join(tempDir, "main.md")

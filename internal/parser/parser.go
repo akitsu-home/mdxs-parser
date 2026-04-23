@@ -11,10 +11,10 @@ import (
 )
 
 const (
-	descriptionKey = "description"
-	defaultCodeKey = "code"
-	includeStart   = "<!-- mdxs-parser:include-start -->"
-	includeEnd     = "<!-- mdxs-parser:include-end -->"
+	descriptionKey        = "description"
+	defaultCodeKey        = "code"
+	includeStart          = "<!-- mdxs-parser:include-start -->"
+	includeEnd            = "<!-- mdxs-parser:include-end -->"
 	includeMetadataPrefix = "<!-- mdxs-parser:include-metadata "
 	includeMetadataSuffix = " -->"
 )
@@ -47,6 +47,29 @@ const (
 	contentKindTable contentKind = "table"
 )
 
+type ImportMode string
+
+const (
+	ImportModeEmbed ImportMode = "embed"
+	ImportModeLink  ImportMode = "link"
+)
+
+type MarkdownOptions struct {
+	ImportMode ImportMode
+}
+
+func (options MarkdownOptions) normalized() (MarkdownOptions, error) {
+	if options.ImportMode == "" {
+		options.ImportMode = ImportModeEmbed
+	}
+	switch options.ImportMode {
+	case ImportModeEmbed, ImportModeLink:
+		return options, nil
+	default:
+		return MarkdownOptions{}, fmt.Errorf("invalid import mode %q: expected %q or %q", options.ImportMode, ImportModeEmbed, ImportModeLink)
+	}
+}
+
 func RenderJSON(path string) ([]byte, error) {
 	absolutePath, err := filepath.Abs(path)
 	if err != nil {
@@ -70,13 +93,26 @@ func RenderMarkdown(path string) (string, error) {
 	return ExpandIncludes(path)
 }
 
+func RenderMarkdownWithOptions(path string, options MarkdownOptions) (string, error) {
+	return expandIncludesWithOptions(path, options)
+}
+
 func ExpandIncludes(path string) (string, error) {
+	return expandIncludesWithOptions(path, MarkdownOptions{})
+}
+
+func expandIncludesWithOptions(path string, options MarkdownOptions) (string, error) {
+	options, err := options.normalized()
+	if err != nil {
+		return "", err
+	}
+
 	absolutePath, err := filepath.Abs(path)
 	if err != nil {
 		return "", fmt.Errorf("resolve path %q: %w", path, err)
 	}
 
-	return expandFileWithMode(absolutePath, map[string]bool{}, false)
+	return expandFileWithOptions(absolutePath, map[string]bool{}, false, options)
 }
 
 func ParseMarkdown(markdown string) (map[string]any, error) {

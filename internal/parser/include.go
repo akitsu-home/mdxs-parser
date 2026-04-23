@@ -14,10 +14,14 @@ var linkPattern = regexp.MustCompile(`\[[^\]]+\]\(([^)]+)\)`)
 var codeImportPattern = regexp.MustCompile("(?ms)```([^\\n]*)\\n\\s*#\\s*import\\(([^)\\n]+)\\)\\s*\\n```")
 
 func expandMarkdownLinks(content string, currentPath string, stack map[string]bool) (string, error) {
-	return expandMarkdownLinksWithMode(content, currentPath, stack, false)
+	return expandMarkdownLinksWithOptions(content, currentPath, stack, false, MarkdownOptions{ImportMode: ImportModeEmbed})
 }
 
 func expandCodeImports(content string, currentPath string) (string, error) {
+	return expandCodeImportsWithMode(content, currentPath, ImportModeEmbed)
+}
+
+func expandCodeImportsWithMode(content string, currentPath string, importMode ImportMode) (string, error) {
 	matches := codeImportPattern.FindAllStringSubmatchIndex(content, -1)
 	if len(matches) == 0 {
 		return content, nil
@@ -38,6 +42,20 @@ func expandCodeImports(content string, currentPath string) (string, error) {
 
 		info := content[infoStart:infoEnd]
 		target := strings.TrimSpace(content[targetStart:targetEnd])
+		if importMode == ImportModeLink {
+			linkText := strings.TrimSpace(info)
+			if linkText == "" {
+				linkText = target
+			}
+			builder.WriteByte('[')
+			builder.WriteString(linkText)
+			builder.WriteString("](")
+			builder.WriteString(target)
+			builder.WriteByte(')')
+			lastIndex = end
+			continue
+		}
+
 		resolvedPath := filepath.Clean(filepath.Join(filepath.Dir(currentPath), target))
 		imported, err := os.ReadFile(resolvedPath)
 		if err != nil {
@@ -59,6 +77,10 @@ func expandCodeImports(content string, currentPath string) (string, error) {
 }
 
 func expandMarkdownLinksWithMode(content string, currentPath string, stack map[string]bool, preserveContext bool) (string, error) {
+	return expandMarkdownLinksWithOptions(content, currentPath, stack, preserveContext, MarkdownOptions{ImportMode: ImportModeEmbed})
+}
+
+func expandMarkdownLinksWithOptions(content string, currentPath string, stack map[string]bool, preserveContext bool, options MarkdownOptions) (string, error) {
 	matches := linkPattern.FindAllStringSubmatchIndex(content, -1)
 	if len(matches) == 0 {
 		return content, nil
@@ -87,7 +109,7 @@ func expandMarkdownLinksWithMode(content string, currentPath string, stack map[s
 
 		targetPath, fragment := splitTarget(target)
 		resolvedPath := filepath.Clean(filepath.Join(filepath.Dir(currentPath), targetPath))
-		included, err := expandFileWithMode(resolvedPath, stack, preserveContext)
+		included, err := expandFileWithOptions(resolvedPath, stack, preserveContext, options)
 		if err != nil {
 			return "", err
 		}
@@ -317,6 +339,10 @@ func expandFileForParse(path string, stack map[string]bool) (string, error) {
 }
 
 func expandFileWithMode(path string, stack map[string]bool, preserveContext bool) (string, error) {
+	return expandFileWithOptions(path, stack, preserveContext, MarkdownOptions{ImportMode: ImportModeEmbed})
+}
+
+func expandFileWithOptions(path string, stack map[string]bool, preserveContext bool, options MarkdownOptions) (string, error) {
 	if stack[path] {
 		return "", fmt.Errorf("circular include detected for %q", path)
 	}
@@ -329,10 +355,18 @@ func expandFileWithMode(path string, stack map[string]bool, preserveContext bool
 		return "", fmt.Errorf("read markdown file %q: %w", path, err)
 	}
 
-	expandedImports, err := expandCodeImports(string(content), path)
+	if options.ImportMode == ImportModeLink {
+		expandedLinks, err := expandMarkdownLinksWithOptions(string(content), path, stack, preserveContext, options)
+		if err != nil {
+			return "", err
+		}
+		return expandCodeImportsWithMode(expandedLinks, path, options.ImportMode)
+	}
+
+	expandedImports, err := expandCodeImportsWithMode(string(content), path, options.ImportMode)
 	if err != nil {
 		return "", err
 	}
 
-	return expandMarkdownLinksWithMode(expandedImports, path, stack, preserveContext)
+	return expandMarkdownLinksWithOptions(expandedImports, path, stack, preserveContext, options)
 }

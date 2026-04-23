@@ -11,6 +11,7 @@ func newParseCmd() *cobra.Command {
 	var (
 		jsonOutput     bool
 		markdownOutput bool
+		importMode     string
 	)
 
 	cmd := &cobra.Command{
@@ -24,7 +25,9 @@ func newParseCmd() *cobra.Command {
 
 			path := args[0]
 			if markdownOutput {
-				output, err := parser.RenderMarkdown(path)
+				output, err := parser.RenderMarkdownWithOptions(path, parser.MarkdownOptions{
+					ImportMode: parser.ImportMode(importMode),
+				})
 				if err != nil {
 					return err
 				}
@@ -43,6 +46,7 @@ func newParseCmd() *cobra.Command {
 
 	cmd.Flags().BoolVar(&jsonOutput, "json", false, "Output JSON (default)")
 	cmd.Flags().BoolVar(&markdownOutput, "markdown", false, "Output expanded markdown")
+	cmd.Flags().StringVar(&importMode, "import-mode", string(parser.ImportModeEmbed), "Import output mode for --markdown: embed or link")
 
 	return cmd
 }

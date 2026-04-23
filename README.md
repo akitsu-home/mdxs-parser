@@ -71,6 +71,7 @@ mdxs-parser version
 mdxs-parser completion bash > /tmp/mdxs-parser.bash
 mdxs-parser parse examples/service.md
 mdxs-parser parse examples/service.md --markdown
+mdxs-parser parse examples/runtime.md --markdown --import-mode=link
 ```
 
 `version` の出力例:
@@ -84,12 +85,16 @@ built: 2026-03-20T12:34:56Z
 ### `parse` コマンド
 
 ```bash
-mdxs-parser parse <file> [--json|--markdown]
+mdxs-parser parse <file> [--json|--markdown] [--import-mode=embed|link]
 ```
 
 - `--json`: JSON で出力します（デフォルト）
 - `--markdown`: 相対パスの Markdown リンクを展開した Markdown を出力します
   - インクルードされた見出しは、差し込み先の親見出し配下に入るように自動で階層補正されます
+  - コードブロック内の `# import(path)` は、デフォルトではファイル内容を埋め込みます
+- `--import-mode=embed|link`: `--markdown` 出力時の `# import(path)` の扱いを選びます
+  - `embed`: ファイル内容を埋め込みます（デフォルト）
+  - `link`: `[言語名](path)` 形式の Markdown リンクとして出力します。言語名がない場合は `[path](path)` になります
 
 ### パースルール
 
@@ -101,7 +106,8 @@ mdxs-parser parse <file> [--json|--markdown]
 - リストは `list` 配列に格納されます
 - コードブロックはフェンスの言語名をキーにした文字列として格納されます
   - 言語名がない場合は `code` キーになります
-  - コードブロックの 1 行目が `# import(path)` の場合は、そのファイル内容でコードブロックを置き換えます
+  - JSON 出力および `--markdown --import-mode=embed` では、コードブロックの 1 行目が `# import(path)` の場合、そのファイル内容でコードブロックを置き換えます
+  - `--markdown --import-mode=link` では、`# import(path)` を `[言語名](path)` 形式の Markdown リンクに置き換えます。言語名がない場合は `[path](path)` になります
   - `path` は Markdown ファイルからの相対パスで、拡張子の制限はありません
 - テーブルはオブジェクトの配列として格納されます
 - ボールドやイタリックなどの文字装飾は無視されます
@@ -116,13 +122,14 @@ mdxs-parser parse examples/service.md --json
 mdxs-parser parse examples/service.md --markdown
 mdxs-parser parse examples/runtime.md --json
 mdxs-parser parse examples/runtime.md --markdown
+mdxs-parser parse examples/runtime.md --markdown --import-mode=link
 ```
 
 `examples/runtime.md` では次の機能を確認できます。
 
 - Markdown リンクによる別ファイルのインクルード
 - インクルード先 Front Matter の属性取り込み
-- コードブロック内 `# import(./runtime/hello.py)` によるソース埋め込み
+- コードブロック内 `# import(./runtime/hello.py)` によるソース埋め込み、またはリンク出力
 
 `examples/service.md` の内容:
 
